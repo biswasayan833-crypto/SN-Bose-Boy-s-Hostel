@@ -13,12 +13,21 @@ import {
   MessageSquare,
   Lock,
   ExternalLink,
+  User,
+  Megaphone,
+  BarChart2,
+  Plus,
 } from 'lucide-react';
-
 
 import { useAuth } from '../context/AuthContext';
 import { useHealthCheck } from '../hooks/useHealthCheck';
-import { getRooms } from '../services/roomService';
+import { getRooms, getUnreadRooms } from '../services/roomService';
+import announcementService from '../services/announcementService';
+import pollService from '../services/pollService';
+import socketService from '../services/socketService';
+import NotificationDropdown from '../components/NotificationDropdown';
+import AnnouncementCard from '../components/AnnouncementCard';
+import PollCard from '../components/PollCard';
 
 export const Dashboard = () => {
   const { user, logout } = useAuth();
@@ -28,8 +37,53 @@ export const Dashboard = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [identityModalOpen, setIdentityModalOpen] = useState(false);
   const [accessibleRooms, setAccessibleRooms] = useState([]);
+  const [roomUnreads, setRoomUnreads] = useState({});
   const [loadingRooms, setLoadingRooms] = useState(true);
   const [roomsError, setRoomsError] = useState('');
+
+  const [announcements, setAnnouncements] = useState([]);
+  const [loadingAnnouncements, setLoadingAnnouncements] = useState(true);
+  const [polls, setPolls] = useState([]);
+  const [loadingPolls, setLoadingPolls] = useState(true);
+
+  const fetchUnreadCounts = async () => {
+    try {
+      const res = await getUnreadRooms();
+      if (res?.data?.unread) {
+        setRoomUnreads(res.data.unread);
+      }
+    } catch (err) {
+      // Ignore
+    }
+  };
+
+  const fetchAnnouncements = async () => {
+    try {
+      setLoadingAnnouncements(true);
+      const res = await announcementService.getAnnouncements();
+      if (res?.data?.announcements) {
+        setAnnouncements(res.data.announcements);
+      }
+    } catch (err) {
+      // Ignore
+    } finally {
+      setLoadingAnnouncements(false);
+    }
+  };
+
+  const fetchPolls = async () => {
+    try {
+      setLoadingPolls(true);
+      const res = await pollService.getPolls();
+      if (res?.data?.polls) {
+        setPolls(res.data.polls);
+      }
+    } catch (err) {
+      // Ignore
+    } finally {
+      setLoadingPolls(false);
+    }
+  };
 
   useEffect(() => {
     const fetchRooms = async () => {
@@ -47,6 +101,54 @@ export const Dashboard = () => {
     };
 
     fetchRooms();
+    fetchUnreadCounts();
+    fetchAnnouncements();
+    fetchPolls();
+
+    // Listen for real-time events over socket
+    socketService.connect();
+    const unsubUnread = socketService.onRoomUnreadUpdated(() => {
+      fetchUnreadCounts();
+    });
+
+    const unsubNewMsg = socketService.onNewMessage(() => {
+      fetchUnreadCounts();
+    });
+
+    const unsubAnnounceNew = socketService.onAnnouncementNew((newAnnounce) => {
+      setAnnouncements((prev) => [newAnnounce, ...prev.filter((a) => a.id !== newAnnounce.id)]);
+    });
+
+    const unsubAnnounceUpd = socketService.onAnnouncementUpdated((updAnnounce) => {
+      setAnnouncements((prev) => prev.map((a) => (a.id === updAnnounce.id ? updAnnounce : a)));
+    });
+
+    const unsubAnnounceDel = socketService.onAnnouncementDeleted(({ id }) => {
+      setAnnouncements((prev) => prev.filter((a) => a.id !== id));
+    });
+
+    const unsubPollNew = socketService.onPollNew((newPoll) => {
+      setPolls((prev) => [newPoll, ...prev.filter((p) => p.id !== newPoll.id)]);
+    });
+
+    const unsubPollUpd = socketService.onPollUpdated((updPoll) => {
+      setPolls((prev) => prev.map((p) => (p.id === updPoll.id ? { ...p, ...updPoll } : p)));
+    });
+
+    const unsubPollClosed = socketService.onPollClosed((closedPoll) => {
+      setPolls((prev) => prev.map((p) => (p.id === closedPoll.id ? { ...p, isClosed: true } : p)));
+    });
+
+    return () => {
+      if (typeof unsubUnread === 'function') unsubUnread();
+      if (typeof unsubNewMsg === 'function') unsubNewMsg();
+      if (typeof unsubAnnounceNew === 'function') unsubAnnounceNew();
+      if (typeof unsubAnnounceUpd === 'function') unsubAnnounceUpd();
+      if (typeof unsubAnnounceDel === 'function') unsubAnnounceDel();
+      if (typeof unsubPollNew === 'function') unsubPollNew();
+      if (typeof unsubPollUpd === 'function') unsubPollUpd();
+      if (typeof unsubPollClosed === 'function') unsubPollClosed();
+    };
   }, []);
 
   const handleLogout = async () => {
@@ -111,9 +213,12 @@ export const Dashboard = () => {
             </nav>
 
 
-            {/* Right Action Menu: Health Status + Anonymous Profile Menu */}
+            {/* Right Action Menu: Health Status + Notifications + Anonymous Profile Menu */}
             <div className="flex items-center gap-3">
               
+              {/* Notifications Dropdown */}
+              <NotificationDropdown />
+
               {/* API Heartbeat Pulse */}
               <div
                 className={`hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-full text-[11px] font-mono border ${
@@ -187,20 +292,47 @@ export const Dashboard = () => {
                     {/* Action buttons */}
                     <div className="pt-2 border-t border-white/[0.08] flex flex-col gap-1.5">
                       {user?.role === 'admin' && (
-                        <Link
-                          to="/admin/reports"
-                          onClick={() => setMenuOpen(false)}
-                          className="w-full py-2 px-3 rounded-lg text-xs font-semibold text-amber-300 hover:text-amber-200 hover:bg-amber-500/10 transition-colors flex items-center justify-between"
-                        >
-                          <span className="flex items-center gap-2">
-                            <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
-                            <span>Moderation Hub</span>
-                          </span>
-                          <span className="text-[10px] font-mono bg-amber-500/20 px-1.5 py-0.5 rounded text-amber-300">
-                            Admin
-                          </span>
-                        </Link>
+                        <>
+                          <Link
+                            to="/admin/reports"
+                            onClick={() => setMenuOpen(false)}
+                            className="w-full py-2 px-3 rounded-lg text-xs font-semibold text-amber-300 hover:text-amber-200 hover:bg-amber-500/10 transition-colors flex items-center justify-between"
+                          >
+                            <span className="flex items-center gap-2">
+                              <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
+                              <span>Moderation Hub</span>
+                            </span>
+                            <span className="text-[10px] font-mono bg-amber-500/20 px-1.5 py-0.5 rounded text-amber-300">
+                              Admin
+                            </span>
+                          </Link>
+                          <Link
+                            to="/admin/announcements"
+                            onClick={() => setMenuOpen(false)}
+                            className="w-full py-2 px-3 rounded-lg text-xs font-semibold text-indigo-300 hover:text-indigo-200 hover:bg-indigo-500/10 transition-colors flex items-center justify-between"
+                          >
+                            <span className="flex items-center gap-2">
+                              <Megaphone className="w-3.5 h-3.5 text-indigo-400" />
+                              <span>Announcements & Polls</span>
+                            </span>
+                            <span className="text-[10px] font-mono bg-indigo-500/20 px-1.5 py-0.5 rounded text-indigo-300">
+                              Admin
+                            </span>
+                          </Link>
+                        </>
                       )}
+
+                      <Link
+                        to="/profile"
+                        onClick={() => setMenuOpen(false)}
+                        className="w-full py-2 px-3 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800 transition-colors flex items-center justify-between text-left"
+                      >
+                        <span className="flex items-center gap-2">
+                          <User className="w-3.5 h-3.5 text-indigo-400" />
+                          <span>My Profile & Settings</span>
+                        </span>
+                        <ArrowRight className="w-3 h-3 text-slate-500" />
+                      </Link>
 
                       <button
                         onClick={() => {
@@ -263,17 +395,24 @@ export const Dashboard = () => {
               </div>
 
               {/* Identity Snapshot Card */}
-              <div className="flex-shrink-0 flex items-center gap-3 bg-slate-900/90 border border-indigo-500/30 px-5 py-3 rounded-2xl shadow-inner">
-                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center text-2xl">
+              <div className="flex-shrink-0 flex items-center gap-3.5 bg-slate-900/90 border border-indigo-500/30 px-5 py-3.5 rounded-2xl shadow-inner">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center text-2xl flex-shrink-0 shadow-md">
                   {user?.anonymousAvatar || '🎭'}
                 </div>
-                <div className="text-left">
+                <div className="text-left space-y-0.5">
                   <div className="text-xs font-bold text-white flex items-center gap-1.5">
                     <span>{user?.anonymousName}</span>
                     <span className="text-emerald-400 font-mono text-[10px]">● Active</span>
                   </div>
                   <div className="text-[11px] text-cyan-300 font-mono">{user?.year}</div>
-                  <div className="text-[10px] text-slate-400">Real name hidden from peers</div>
+                  <div className="text-[10px] text-slate-400">Your community identity</div>
+                  <Link
+                    to="/profile"
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-400 hover:text-indigo-300 transition-colors pt-0.5"
+                  >
+                    <span>Edit Profile</span>
+                    <ArrowRight className="w-3 h-3" />
+                  </Link>
                 </div>
               </div>
             </div>
@@ -281,14 +420,14 @@ export const Dashboard = () => {
             <div className="pt-3 border-t border-white/[0.06] flex items-center gap-2 text-xs text-slate-400">
               <Sparkles className="w-4 h-4 text-indigo-400 flex-shrink-0" />
               <span>
-                Task 4 Active: Message reactions, self-deletion, and community safety reporting enabled!
+                Task 6 Active: Profile and anonymous identity management enabled!
               </span>
             </div>
 
           </div>
         </div>
 
-        {/* Admin Moderation Callout (Only visible for admin role) */}
+        {/* Admin Center Callout (Only visible for admin role) */}
         {user?.role === 'admin' && (
           <div className="p-5 rounded-3xl bg-gradient-to-r from-amber-500/10 via-rose-500/10 to-indigo-500/10 border border-amber-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl">
             <div className="flex items-center gap-3">
@@ -297,23 +436,92 @@ export const Dashboard = () => {
               </div>
               <div>
                 <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                  <span>Hostel Moderation & Safety Center</span>
+                  <span>Hostel Administration Center</span>
                   <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-semibold">
                     Admin Clearance
                   </span>
                 </h3>
                 <p className="text-xs text-slate-300">
-                  Review student reports, moderate flagged messages, and maintain hostel conduct standards.
+                  Manage announcements, community polls, message moderation, and hostel safety.
                 </p>
               </div>
             </div>
-            <Link
-              to="/admin/reports"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition-all shadow-md shadow-amber-500/20 flex-shrink-0"
-            >
-              <span>Open Moderation Hub</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
+            <div className="flex items-center gap-2.5">
+              <Link
+                to="/admin/announcements"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition-all shadow-md shadow-indigo-600/20 flex-shrink-0"
+              >
+                <Megaphone className="w-3.5 h-3.5" />
+                <span>Announcements & Polls</span>
+              </Link>
+              <Link
+                to="/admin/reports"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition-all shadow-md shadow-amber-500/20 flex-shrink-0"
+              >
+                <span>Moderation Hub</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+          </div>
+        )}
+
+        {/* Hostel Announcements Section */}
+        {announcements.length > 0 && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
+              <div className="flex items-center gap-2">
+                <Megaphone className="w-5 h-5 text-indigo-400" />
+                <h2 className="text-xl font-bold text-white tracking-tight">Hostel Announcements</h2>
+              </div>
+              {user?.role === 'admin' && (
+                <Link
+                  to="/admin/announcements"
+                  className="text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
+                >
+                  <span>Manage</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {announcements.map((a) => (
+                <AnnouncementCard key={a.id} announcement={a} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Community Polls Section */}
+        {polls.length > 0 && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
+              <div className="flex items-center gap-2">
+                <BarChart2 className="w-5 h-5 text-emerald-400" />
+                <h2 className="text-xl font-bold text-white tracking-tight">Community Polls</h2>
+              </div>
+              {user?.role === 'admin' && (
+                <Link
+                  to="/admin/announcements"
+                  className="text-xs font-semibold text-emerald-400 hover:text-emerald-300 flex items-center gap-1"
+                >
+                  <span>Manage</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {polls.map((p) => (
+                <PollCard
+                  key={p.id}
+                  poll={p}
+                  onPollUpdated={(updated) => {
+                    setPolls((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+                  }}
+                />
+              ))}
+            </div>
           </div>
         )}
 
@@ -356,6 +564,8 @@ export const Dashboard = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {accessibleRooms.map((room) => {
                 const isGlobal = room.type === 'global';
+                const unreadCount =
+                  roomUnreads[room._id] ?? roomUnreads[room.slug] ?? roomUnreads[room.name] ?? 0;
 
                 return (
                   <div
@@ -403,10 +613,17 @@ export const Dashboard = () => {
                           </div>
                         </div>
 
-                        <span className="hidden sm:inline-flex items-center gap-1.5 text-[11px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                          <span>Live Chat</span>
-                        </span>
+                        {unreadCount > 0 ? (
+                          <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-rose-300 bg-rose-500/15 border border-rose-500/30 px-2.5 py-1 rounded-full shadow-sm animate-pulse">
+                            <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
+                            <span>{unreadCount} {unreadCount === 1 ? 'new message' : 'new messages'}</span>
+                          </span>
+                        ) : (
+                          <span className="hidden sm:inline-flex items-center gap-1.5 text-[11px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                            <span>Live Chat</span>
+                          </span>
+                        )}
                       </div>
 
                       {/* Description */}

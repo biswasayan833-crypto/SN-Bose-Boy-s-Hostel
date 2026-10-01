@@ -53,6 +53,20 @@ const messageSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    isPinned: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    pinnedAt: {
+      type: Date,
+      default: null,
+    },
+    pinnedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
   },
   {
     timestamps: true,
@@ -62,6 +76,7 @@ const messageSchema = new mongoose.Schema(
 // Compound indexes for fast room message retrieval
 messageSchema.index({ room: 1, createdAt: 1 });
 messageSchema.index({ room: 1, createdAt: -1 });
+messageSchema.index({ room: 1, isPinned: 1, pinnedAt: -1 });
 messageSchema.index({ 'reactions.user': 1 });
 
 const Message = mongoose.model('Message', messageSchema);

@@ -71,6 +71,11 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Update user data handler (for immediate profile identity updates)
+  const updateUser = (updatedData) => {
+    setUser((prev) => (prev ? { ...prev, ...updatedData } : updatedData));
+  };
+
   const value = {
     user,
     loading,
@@ -78,6 +83,7 @@ export const AuthProvider = ({ children }) => {
     login,
     register,
     logout,
+    updateUser,
     checkAuth: initializeAuth,
   };
 

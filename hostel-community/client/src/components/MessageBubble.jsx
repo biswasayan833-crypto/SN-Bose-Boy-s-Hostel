@@ -7,6 +7,7 @@ import {
   X,
   AlertCircle,
   CheckCircle2,
+  Pin,
 } from 'lucide-react';
 
 export const REACTION_CONFIG = [
@@ -23,6 +24,7 @@ export const MessageBubble = ({
   onReactionToggle,
   onDeleteMessage,
   onReportMessage,
+  onTogglePin,
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -162,6 +164,12 @@ export const MessageBubble = ({
         <span className="text-[10px] text-slate-500 font-mono">
           {formatTime(message.createdAt)}
         </span>
+        {message.isPinned && (
+          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-violet-300 bg-violet-500/15 px-1.5 py-0.5 rounded border border-violet-500/30">
+            <Pin className="w-2.5 h-2.5 rotate-45 text-violet-400" />
+            Pinned
+          </span>
+        )}
       </div>
 
       {/* Bubble Row with Hover Quick-Actions */}
@@ -240,6 +248,20 @@ export const MessageBubble = ({
                     isCurrentUser ? 'right-0' : 'left-0'
                   } w-36 bg-[#0d1222] border border-white/[0.12] rounded-xl shadow-2xl py-1.5 z-30 animate-in fade-in zoom-in-95 duration-100`}
                 >
+                  {currentUser?.role === 'admin' && onTogglePin && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        onTogglePin(message.id, !message.isPinned);
+                      }}
+                      className="w-full px-3 py-1.5 text-xs text-violet-300 hover:text-violet-200 hover:bg-violet-500/10 flex items-center gap-2 transition-colors text-left"
+                    >
+                      <Pin className="w-3.5 h-3.5 text-violet-400" />
+                      <span>{message.isPinned ? 'Unpin' : 'Pin Message'}</span>
+                    </button>
+                  )}
+
                   {isCurrentUser ? (
                     <button
                       type="button"

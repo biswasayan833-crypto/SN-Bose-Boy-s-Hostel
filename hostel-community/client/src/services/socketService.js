@@ -115,6 +115,13 @@ class SocketService {
     }
   }
 
+  markRoomRead(roomId, callback) {
+    if (!this.socket) this.connect();
+    if (this.socket) {
+      this.socket.emit('mark_room_read', { roomId }, callback);
+    }
+  }
+
   onReactionUpdated(handler) {
     if (!this.socket) this.connect();
     if (this.socket) {
@@ -138,6 +145,110 @@ class SocketService {
     if (this.socket) {
       this.socket.on('new_message', handler);
       return () => this.socket.off('new_message', handler);
+    }
+    return () => {};
+  }
+
+  onNotificationNew(handler) {
+    if (!this.socket) this.connect();
+    if (this.socket) {
+      this.socket.on('notification:new', handler);
+      return () => this.socket.off('notification:new', handler);
+    }
+    return () => {};
+  }
+
+  pinMessage(messageId, callback) {
+    if (!this.socket) this.connect();
+    if (this.socket) {
+      this.socket.emit('pin_message', { messageId }, callback);
+    }
+  }
+
+  unpinMessage(messageId, callback) {
+    if (!this.socket) this.connect();
+    if (this.socket) {
+      this.socket.emit('unpin_message', { messageId }, callback);
+    }
+  }
+
+  onAnnouncementNew(handler) {
+    if (!this.socket) this.connect();
+    if (this.socket) {
+      this.socket.on('announcement:new', handler);
+      return () => this.socket.off('announcement:new', handler);
+    }
+    return () => {};
+  }
+
+  onAnnouncementUpdated(handler) {
+    if (!this.socket) this.connect();
+    if (this.socket) {
+      this.socket.on('announcement:updated', handler);
+      return () => this.socket.off('announcement:updated', handler);
+    }
+    return () => {};
+  }
+
+  onAnnouncementDeleted(handler) {
+    if (!this.socket) this.connect();
+    if (this.socket) {
+      this.socket.on('announcement:deleted', handler);
+      return () => this.socket.off('announcement:deleted', handler);
+    }
+    return () => {};
+  }
+
+  onPollNew(handler) {
+    if (!this.socket) this.connect();
+    if (this.socket) {
+      this.socket.on('poll:new', handler);
+      return () => this.socket.off('poll:new', handler);
+    }
+    return () => {};
+  }
+
+  onPollUpdated(handler) {
+    if (!this.socket) this.connect();
+    if (this.socket) {
+      this.socket.on('poll:updated', handler);
+      return () => this.socket.off('poll:updated', handler);
+    }
+    return () => {};
+  }
+
+  onPollClosed(handler) {
+    if (!this.socket) this.connect();
+    if (this.socket) {
+      this.socket.on('poll:closed', handler);
+      return () => this.socket.off('poll:closed', handler);
+    }
+    return () => {};
+  }
+
+  onMessagePinned(handler) {
+    if (!this.socket) this.connect();
+    if (this.socket) {
+      this.socket.on('message:pinned', handler);
+      return () => this.socket.off('message:pinned', handler);
+    }
+    return () => {};
+  }
+
+  onMessageUnpinned(handler) {
+    if (!this.socket) this.connect();
+    if (this.socket) {
+      this.socket.on('message:unpinned', handler);
+      return () => this.socket.off('message:unpinned', handler);
+    }
+    return () => {};
+  }
+
+  onRoomUnreadUpdated(handler) {
+    if (!this.socket) this.connect();
+    if (this.socket) {
+      this.socket.on('room:unread_updated', handler);
+      return () => this.socket.off('room:unread_updated', handler);
     }
     return () => {};
   }

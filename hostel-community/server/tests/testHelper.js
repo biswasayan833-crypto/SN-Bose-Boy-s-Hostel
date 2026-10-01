@@ -11,6 +11,11 @@ import User from '../models/User.js';
 import Room from '../models/Room.js';
 import Message from '../models/Message.js';
 import Report from '../models/Report.js';
+import Notification from '../models/Notification.js';
+import RoomReadState from '../models/RoomReadState.js';
+import Announcement from '../models/Announcement.js';
+import Poll from '../models/Poll.js';
+import PollVote from '../models/PollVote.js';
 import { seedInitialRooms } from '../services/room.service.js';
 
 const TEST_DB_URI = process.env.TEST_MONGODB_URI || 'mongodb://127.0.0.1:27017/sn_bose_test';
@@ -30,6 +35,8 @@ export const setupTestEnvironment = async () => {
   await Message.deleteMany({});
   await Report.deleteMany({});
   await Room.deleteMany({});
+  await Notification.deleteMany({});
+  await RoomReadState.deleteMany({});
 
   // Seed rooms
   await seedInitialRooms();
@@ -112,6 +119,11 @@ export const teardownTestEnvironment = async () => {
     await Message.deleteMany({});
     await Report.deleteMany({});
     await Room.deleteMany({});
+    await Notification.deleteMany({});
+    await RoomReadState.deleteMany({});
+    await Announcement.deleteMany({});
+    await Poll.deleteMany({});
+    await PollVote.deleteMany({});
     await mongoose.disconnect();
   }
 

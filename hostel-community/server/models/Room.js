@@ -49,6 +49,7 @@ const roomSchema = new mongoose.Schema(
 // Method to verify if a given user is allowed to access this room
 roomSchema.methods.isUserAuthorized = function (user) {
   if (!user || !user.isActive) return false;
+  if (user.role === 'admin') return true;
   if (this.type === 'global') return true;
   if (this.type === 'year') {
     return user.year === this.allowedYear;

@@ -1,9 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Shield, ShieldAlert, Menu, X, ArrowRight, Lock, LogOut, LayoutDashboard } from 'lucide-react';
+import {
+  Shield,
+  ShieldAlert,
+  Menu,
+  X,
+  ArrowRight,
+  Lock,
+  LogOut,
+  LayoutDashboard,
+  User,
+  Megaphone,
+} from 'lucide-react';
 import { useHealthCheck } from '../hooks/useHealthCheck';
 
 import { useAuth } from '../context/AuthContext';
+import NotificationDropdown from './NotificationDropdown';
 
 export const Navbar = () => {
   const [scrolled, setScrolled] = useState(false);
@@ -105,15 +117,27 @@ export const Navbar = () => {
 
             {isAuthenticated ? (
               <div className="flex items-center gap-3">
+                <NotificationDropdown />
+
                 {user?.role === 'admin' && (
-                  <Link
-                    to="/admin/reports"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-amber-300 bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 transition-all shadow-sm"
-                    title="Moderation Hub"
-                  >
-                    <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Moderation</span>
-                  </Link>
+                  <>
+                    <Link
+                      to="/admin/reports"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-amber-300 bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 transition-all shadow-sm"
+                      title="Moderation Hub"
+                    >
+                      <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Moderation</span>
+                    </Link>
+                    <Link
+                      to="/admin/announcements"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-indigo-300 bg-indigo-500/10 border border-indigo-500/30 hover:bg-indigo-500/20 transition-all shadow-sm"
+                      title="Announcements & Polls"
+                    >
+                      <Megaphone className="w-3.5 h-3.5 text-indigo-400" />
+                      <span>Notices</span>
+                    </Link>
+                  </>
                 )}
 
                 <Link
@@ -123,6 +147,15 @@ export const Navbar = () => {
                   <span className="text-base">{user?.anonymousAvatar}</span>
                   <span className="text-xs">{user?.anonymousName}</span>
                   <LayoutDashboard className="w-4 h-4 text-indigo-400 ml-1" />
+                </Link>
+
+                <Link
+                  to="/profile"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:text-white bg-slate-900 border border-slate-700/80 hover:border-indigo-500/50 hover:bg-slate-800 transition-all shadow-sm"
+                  title="Profile & Identity Management"
+                >
+                  <User className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>Profile</span>
                 </Link>
 
                 <button
@@ -162,6 +195,7 @@ export const Navbar = () => {
 
           {/* Mobile Menu Toggle Button */}
           <div className="flex items-center gap-3 md:hidden">
+            {isAuthenticated && <NotificationDropdown />}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="p-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 hover:text-white focus:outline-none"
@@ -222,14 +256,24 @@ export const Navbar = () => {
               {isAuthenticated ? (
                 <>
                   {user?.role === 'admin' && (
-                    <Link
-                      to="/admin/reports"
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="w-full py-2.5 rounded-xl text-sm font-semibold text-amber-200 bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 transition-colors flex items-center justify-center gap-2"
-                    >
-                      <ShieldAlert className="w-4 h-4 text-amber-400" />
-                      <span>Moderation Hub</span>
-                    </Link>
+                    <>
+                      <Link
+                        to="/admin/reports"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="w-full py-2.5 rounded-xl text-sm font-semibold text-amber-200 bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 transition-colors flex items-center justify-center gap-2"
+                      >
+                        <ShieldAlert className="w-4 h-4 text-amber-400" />
+                        <span>Moderation Hub</span>
+                      </Link>
+                      <Link
+                        to="/admin/announcements"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="w-full py-2.5 rounded-xl text-sm font-semibold text-indigo-200 bg-indigo-500/10 border border-indigo-500/30 hover:bg-indigo-500/20 transition-colors flex items-center justify-center gap-2"
+                      >
+                        <Megaphone className="w-4 h-4 text-indigo-400" />
+                        <span>Announcements & Polls</span>
+                      </Link>
+                    </>
                   )}
                   <Link
                     to="/dashboard"
@@ -237,6 +281,15 @@ export const Navbar = () => {
                     className="w-full py-2.5 rounded-xl text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 transition-colors flex items-center justify-center gap-2"
                   >
                     <span>Dashboard ({user?.anonymousName})</span>
+                  </Link>
+
+                  <Link
+                    to="/profile"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="w-full py-2.5 rounded-xl text-sm font-semibold text-slate-200 bg-slate-800/80 hover:bg-slate-700 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <User className="w-4 h-4 text-indigo-400" />
+                    <span>My Profile & Settings</span>
                   </Link>
 
                   <button

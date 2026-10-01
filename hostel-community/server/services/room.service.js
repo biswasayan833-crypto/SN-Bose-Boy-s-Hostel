@@ -1,4 +1,6 @@
 import Room from '../models/Room.js';
+import Message from '../models/Message.js';
+import RoomReadState from '../models/RoomReadState.js';
 import { logger } from '../utils/logger.js';
 
 /**
@@ -130,10 +132,99 @@ export const getRoomById = async (roomId, user) => {
   return room;
 };
 
+/**
+ * Calculate unread message counts for all rooms accessible to the authenticated user.
+ * Excludes:
+ * - messages sent by the user themselves
+ * - soft-deleted messages
+ * - inaccessible year rooms (a 2nd Year student NEVER gets 3rd or 4th Year data)
+ */
+export const getUnreadCountsForUser = async (user) => {
+  const accessibleRooms = await getAccessibleRooms(user);
+  const unreadMap = {};
+  const countsByRoomName = {};
+
+  for (const room of accessibleRooms) {
+    const readState = await RoomReadState.findOne({
+      user: user._id,
+      room: room._id,
+    });
+
+    const lastReadAt = readState?.lastReadAt || new Date(0);
+
+    const count = await Message.countDocuments({
+      room: room._id,
+      sender: { $ne: user._id },
+      isDeleted: { $ne: true },
+      createdAt: { $gt: lastReadAt },
+    });
+
+    unreadMap[room._id.toString()] = count;
+    unreadMap[room.slug] = count;
+    unreadMap[room.name] = count;
+    countsByRoomName[room.name] = count;
+  }
+
+  return {
+    unread: unreadMap,
+    ...countsByRoomName,
+  };
+};
+
+/**
+ * Mark a room as actively read by the authenticated user.
+ * Enforces room authorization.
+ */
+export const markRoomAsRead = async ({ roomIdOrSlug, user }) => {
+  if (!roomIdOrSlug) {
+    const error = new Error('Room identifier is required.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  let room;
+  if (roomIdOrSlug.match(/^[0-9a-fA-F]{24}$/)) {
+    room = await Room.findById(roomIdOrSlug);
+  } else {
+    room = await Room.findOne({ slug: roomIdOrSlug.toLowerCase(), isActive: true });
+  }
+
+  if (!room) {
+    const error = new Error(`Room '${roomIdOrSlug}' not found.`);
+    error.statusCode = 404;
+    throw error;
+  }
+
+  if (!room.isUserAuthorized(user)) {
+    const error = new Error(
+      `Access denied: You are in ${user.year}, which cannot access the ${room.name} room.`
+    );
+    error.statusCode = 403;
+    throw error;
+  }
+
+  const now = new Date();
+  await RoomReadState.findOneAndUpdate(
+    { user: user._id, room: room._id },
+    { $set: { lastReadAt: now } },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+
+  return {
+    roomId: room._id.toString(),
+    slug: room.slug,
+    name: room.name,
+    lastReadAt: now,
+    unreadCount: 0,
+  };
+};
+
 export default {
   INITIAL_ROOMS,
   seedInitialRooms,
   getAccessibleRooms,
   getRoomBySlug,
   getRoomById,
+  getUnreadCountsForUser,
+  markRoomAsRead,
 };

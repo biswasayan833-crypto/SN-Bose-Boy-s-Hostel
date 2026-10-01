@@ -47,6 +47,12 @@ const userSchema = new mongoose.Schema(
       required: [true, 'Anonymous avatar is required'],
       trim: true,
     },
+    bio: {
+      type: String,
+      default: '',
+      trim: true,
+      maxlength: [160, 'Bio cannot exceed 160 characters'],
+    },
     role: {
       type: String,
       enum: ['student', 'admin'],
@@ -81,16 +87,35 @@ userSchema.methods.comparePassword = async function (candidatePassword) {
   return bcrypt.compare(candidatePassword, this.password);
 };
 
-// Safe community-facing object serializer (real fullName and password never exposed)
+// Safe community-facing object serializer (real fullName, email, and password never exposed)
 userSchema.methods.toSafeObject = function () {
   return {
     id: this._id.toString(),
     anonymousName: this.anonymousName,
     anonymousAvatar: this.anonymousAvatar,
+    bio: this.bio || '',
     year: this.year,
     role: this.role,
     isActive: this.isActive,
     createdAt: this.createdAt,
+    updatedAt: this.updatedAt,
+  };
+};
+
+// Private profile object serializer (for authenticated owner's private view only)
+userSchema.methods.toPrivateProfileObject = function () {
+  return {
+    id: this._id.toString(),
+    fullName: this.fullName,
+    email: this.email,
+    year: this.year,
+    anonymousName: this.anonymousName,
+    anonymousAvatar: this.anonymousAvatar,
+    bio: this.bio || '',
+    role: this.role,
+    isActive: this.isActive,
+    createdAt: this.createdAt,
+    updatedAt: this.updatedAt,
   };
 };
 

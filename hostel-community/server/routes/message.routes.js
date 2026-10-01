@@ -4,8 +4,10 @@ import {
   deleteReaction,
   deleteUserMessage,
   reportUserMessage,
+  pinUserMessage,
+  unpinUserMessage,
 } from '../controllers/message.controller.js';
-import { requireAuth } from '../middleware/auth.middleware.js';
+import { requireAuth, requireAdmin } from '../middleware/auth.middleware.js';
 
 const router = Router();
 
@@ -21,5 +23,9 @@ router.delete('/:messageId', deleteUserMessage);
 
 // Message report endpoint
 router.post('/:messageId/report', reportUserMessage);
+
+// Pinned message endpoints (Admin only)
+router.patch('/:messageId/pin', requireAdmin, pinUserMessage);
+router.patch('/:messageId/unpin', requireAdmin, unpinUserMessage);
 
 export default router;

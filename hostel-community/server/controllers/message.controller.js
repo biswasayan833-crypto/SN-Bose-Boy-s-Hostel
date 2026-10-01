@@ -1,4 +1,10 @@
-import { addReaction, removeReaction, deleteMessage } from '../services/message.service.js';
+import {
+  addReaction,
+  removeReaction,
+  deleteMessage,
+  pinMessage,
+  unpinMessage,
+} from '../services/message.service.js';
 import { createReport } from '../services/report.service.js';
 import { successResponse, errorResponse } from '../utils/responseHelper.js';
 import { getIO } from '../socket/chat.socket.js';
@@ -143,9 +149,53 @@ export const reportUserMessage = async (req, res) => {
   }
 };
 
+/**
+ * PATCH /api/messages/:messageId/pin
+ * Admin: Pin message
+ */
+export const pinUserMessage = async (req, res) => {
+  try {
+    const pinnedMessage = await pinMessage({
+      messageId: req.params.messageId,
+      user: req.user,
+    });
+    return successResponse(res, 'Message pinned successfully', { message: pinnedMessage });
+  } catch (error) {
+    return errorResponse(
+      res,
+      error.message || 'Failed to pin message.',
+      null,
+      error.statusCode || 500
+    );
+  }
+};
+
+/**
+ * PATCH /api/messages/:messageId/unpin
+ * Admin: Unpin message
+ */
+export const unpinUserMessage = async (req, res) => {
+  try {
+    const unpinnedMessage = await unpinMessage({
+      messageId: req.params.messageId,
+      user: req.user,
+    });
+    return successResponse(res, 'Message unpinned successfully', { message: unpinnedMessage });
+  } catch (error) {
+    return errorResponse(
+      res,
+      error.message || 'Failed to unpin message.',
+      null,
+      error.statusCode || 500
+    );
+  }
+};
+
 export default {
   postReaction,
   deleteReaction,
   deleteUserMessage,
   reportUserMessage,
+  pinUserMessage,
+  unpinUserMessage,
 };

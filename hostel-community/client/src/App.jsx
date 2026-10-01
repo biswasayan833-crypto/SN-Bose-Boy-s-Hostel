@@ -9,8 +9,10 @@ import LandingPage from './pages/LandingPage';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
+import ProfilePage from './pages/ProfilePage';
 import ChatPage from './pages/ChatPage';
 import AdminReports from './pages/AdminReports';
+import AdminAnnouncements from './pages/AdminAnnouncements';
 import NotFound from './pages/NotFound';
 
 
@@ -58,6 +60,16 @@ export const App = () => {
               }
             />
 
+            {/* Protected Profile & Identity Management */}
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <ProfilePage />
+                </ProtectedRoute>
+              }
+            />
+
             {/* Protected Real-Time Community Chat Room */}
             <Route
               path="/community/:slug"
@@ -74,6 +86,16 @@ export const App = () => {
               element={
                 <ProtectedRoute>
                   <AdminReports />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Protected Admin Announcements & Polls Management */}
+            <Route
+              path="/admin/announcements"
+              element={
+                <ProtectedRoute>
+                  <AdminAnnouncements />
                 </ProtectedRoute>
               }
             />

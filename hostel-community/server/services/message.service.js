@@ -1,5 +1,7 @@
 import Message, { ALLOWED_REACTION_TYPES } from '../models/Message.js';
 import { getRoomById } from './room.service.js';
+import { createNotification } from './notification.service.js';
+import { getIO } from '../socket/chat.socket.js';
 
 export { ALLOWED_REACTION_TYPES };
 
@@ -40,6 +42,8 @@ export const formatSafeMessage = (msg) => {
     content: isDeleted ? 'Message deleted' : msg.content,
     isDeleted,
     deletedAt: msg.deletedAt || null,
+    isPinned: Boolean(msg.isPinned),
+    pinnedAt: msg.pinnedAt || null,
     sender: {
       id: sender._id ? sender._id.toString() : sender.id,
       anonymousName: sender.anonymousName || 'Anonymous Student',
@@ -174,6 +178,37 @@ export const addReaction = async ({ messageId, user, type }) => {
   await message.save();
   await message.populate('sender', 'anonymousName anonymousAvatar year');
 
+  // Trigger notification for message owner (if not a self-reaction)
+  const isMessageOwner = message.sender._id
+    ? message.sender._id.toString() === user._id.toString()
+    : message.sender.toString() === user._id.toString();
+
+  if (!isMessageOwner) {
+    try {
+      const emojiMap = {
+        like: '👍',
+        love: '❤️',
+        laugh: '😂',
+        fire: '🔥',
+        clap: '👏',
+      };
+      const emoji = emojiMap[type] || type;
+
+      await createNotification({
+        recipient: message.sender._id || message.sender,
+        type: 'reaction',
+        actor: user._id,
+        room: message.room,
+        message: message._id,
+        title: 'New Reaction',
+        content: `Someone reacted ${emoji} to your message.`,
+        metadata: { reactionType: type, emoji },
+      });
+    } catch (err) {
+      // Don't fail the reaction request if notification fails
+    }
+  }
+
   return formatSafeMessage(message);
 };
 
@@ -255,7 +290,135 @@ export const deleteMessage = async ({ messageId, user }) => {
   await message.save();
   await message.populate('sender', 'anonymousName anonymousAvatar year');
 
+  // If an administrator removed another student's message, notify the affected student
+  if (isAdmin && !isOwner) {
+    try {
+      await createNotification({
+        recipient: message.sender._id || message.sender,
+        type: 'moderation',
+        actor: null, // Strictly conceal admin identity
+        room: message.room,
+        message: message._id,
+        title: 'Message Moderation',
+        content: 'Your message was removed by a moderator.',
+        metadata: { action: 'message_removed' },
+      });
+    } catch (err) {
+      // Don't fail the deletion if notification fails
+    }
+  }
+
   return formatSafeMessage(message);
+};
+
+/**
+ * Admin: Pin a message in a room.
+ * Enforces admin role, room access, and message validity.
+ */
+export const pinMessage = async ({ messageId, user }) => {
+  if (user.role !== 'admin') {
+    const error = new Error('Access denied: Administrator privileges required to pin messages.');
+    error.statusCode = 403;
+    throw error;
+  }
+
+  const message = await Message.findById(messageId);
+  if (!message) {
+    const error = new Error('Message not found.');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  if (message.isDeleted) {
+    const error = new Error('Cannot pin a deleted message.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  // Verify room authorization
+  await getRoomById(message.room, user);
+
+  message.isPinned = true;
+  message.pinnedAt = new Date();
+  message.pinnedBy = user._id;
+
+  await message.save();
+  await message.populate('sender', 'anonymousName anonymousAvatar year');
+
+  const safeMsg = formatSafeMessage(message);
+
+  // Real-time broadcast
+  try {
+    const io = getIO();
+    if (io) {
+      io.to(safeMsg.room).emit('message:pinned', safeMsg);
+    }
+  } catch (err) {
+    // Socket might not be available in test harness
+  }
+
+  return safeMsg;
+};
+
+/**
+ * Admin: Unpin a message.
+ */
+export const unpinMessage = async ({ messageId, user }) => {
+  if (user.role !== 'admin') {
+    const error = new Error('Access denied: Administrator privileges required to unpin messages.');
+    error.statusCode = 403;
+    throw error;
+  }
+
+  const message = await Message.findById(messageId);
+  if (!message) {
+    const error = new Error('Message not found.');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  await getRoomById(message.room, user);
+
+  message.isPinned = false;
+  message.pinnedAt = null;
+  message.pinnedBy = null;
+
+  await message.save();
+  await message.populate('sender', 'anonymousName anonymousAvatar year');
+
+  const safeMsg = formatSafeMessage(message);
+
+  try {
+    const io = getIO();
+    if (io) {
+      io.to(safeMsg.room).emit('message:unpinned', {
+        messageId: safeMsg.id,
+        roomId: safeMsg.room,
+      });
+    }
+  } catch (err) {
+    // Socket might not be available in test harness
+  }
+
+  return safeMsg;
+};
+
+/**
+ * Retrieve all pinned messages for a room with authorization check.
+ */
+export const getPinnedMessages = async (roomId, user) => {
+  await getRoomById(roomId, user);
+
+  const pinned = await Message.find({
+    room: roomId,
+    isPinned: true,
+    isDeleted: false,
+  })
+    .sort({ pinnedAt: -1, createdAt: -1 })
+    .populate('sender', 'anonymousName anonymousAvatar year')
+    .lean();
+
+  return pinned.map(formatSafeMessage);
 };
 
 export default {
@@ -266,4 +429,7 @@ export default {
   addReaction,
   removeReaction,
   deleteMessage,
+  pinMessage,
+  unpinMessage,
+  getPinnedMessages,
 };

@@ -9,20 +9,31 @@ import {
   AlertCircle,
   MessageSquare,
   Lock,
+  Pin,
+  ChevronDown,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { getRoom, getMessages } from '../services/roomService';
+import {
+  getRoom,
+  getMessages,
+  markRoomAsRead,
+  getPinnedMessages,
+  pinMessage,
+  unpinMessage,
+} from '../services/roomService';
 import socketService from '../services/socketService';
 import messageService from '../services/messageService';
 import MessageBubble from '../components/MessageBubble';
+import NotificationDropdown from '../components/NotificationDropdown';
 
 export const ChatPage = () => {
   const { slug } = useParams();
   const { user } = useAuth();
 
-
   const [room, setRoom] = useState(null);
   const [messages, setMessages] = useState([]);
+  const [pinnedMessages, setPinnedMessages] = useState([]);
+  const [pinnedExpanded, setPinnedExpanded] = useState(false);
   const [inputContent, setInputContent] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -53,10 +64,18 @@ export const ChatPage = () => {
         if (!isMounted) return;
         setRoom(currentRoom);
 
-        // Fetch initial messages for room
-        const msgRes = await getMessages(currentRoom._id, { page: 1, limit: 50 });
+        // Mark room as read upon opening
+        markRoomAsRead(currentRoom._id).catch(() => {});
+        socketService.markRoomRead(currentRoom._id);
+
+        // Fetch initial messages and pinned messages for room
+        const [msgRes, pinnedRes] = await Promise.all([
+          getMessages(currentRoom._id, { page: 1, limit: 50 }),
+          getPinnedMessages(currentRoom._id),
+        ]);
         if (!isMounted) return;
         setMessages(msgRes?.data?.messages || []);
+        setPinnedMessages(pinnedRes?.data?.pinnedMessages || []);
       } catch (err) {
         if (!isMounted) return;
         setError(err.message || 'Failed to load community room.');
@@ -94,6 +113,9 @@ export const ChatPage = () => {
     // Listen for incoming messages
     const unsubscribeNewMessage = socketService.onNewMessage((newMsg) => {
       if (newMsg && newMsg.room === room._id) {
+        // Suppress unread badge for actively viewed room
+        socketService.markRoomRead(room._id);
+
         setMessages((prev) => {
           // Prevent duplicates
           if (prev.some((m) => m.id === newMsg.id)) return prev;
@@ -139,6 +161,29 @@ export const ChatPage = () => {
       }
     });
 
+    // Listen for real-time pinned message updates
+    const unsubscribeMessagePinned = socketService.onMessagePinned((pinnedMsg) => {
+      if (pinnedMsg && pinnedMsg.room === room._id) {
+        setPinnedMessages((prev) => {
+          const exists = prev.some((m) => m.id === pinnedMsg.id);
+          if (exists) return prev.map((m) => (m.id === pinnedMsg.id ? pinnedMsg : m));
+          return [pinnedMsg, ...prev];
+        });
+        setMessages((prev) =>
+          prev.map((m) => (m.id === pinnedMsg.id ? { ...m, isPinned: true } : m))
+        );
+      }
+    });
+
+    const unsubscribeMessageUnpinned = socketService.onMessageUnpinned(({ messageId, roomId }) => {
+      if (roomId === room._id) {
+        setPinnedMessages((prev) => prev.filter((m) => m.id !== messageId));
+        setMessages((prev) =>
+          prev.map((m) => (m.id === messageId ? { ...m, isPinned: false } : m))
+        );
+      }
+    });
+
     // Listen for room errors
     const unsubscribeRoomError = socketService.onRoomError((errPayload) => {
       setError(errPayload?.message || 'A real-time room error occurred.');
@@ -150,6 +195,8 @@ export const ChatPage = () => {
       unsubscribeNewMessage();
       unsubscribeReactionUpdated();
       unsubscribeMessageDeleted();
+      unsubscribeMessagePinned();
+      unsubscribeMessageUnpinned();
       unsubscribeRoomError();
     };
   }, [room]);
@@ -276,6 +323,35 @@ export const ChatPage = () => {
     return await messageService.reportMessage(messageId, { reason, notes });
   };
 
+  // Handle pin / unpin message (Admin only)
+  const handleTogglePin = async (messageId, shouldPin) => {
+    try {
+      if (shouldPin) {
+        socketService.pinMessage(messageId, async (ack) => {
+          if (!ack || !ack.success) {
+            try {
+              await pinMessage(messageId);
+            } catch (restErr) {
+              setError(restErr.message || 'Failed to pin message.');
+            }
+          }
+        });
+      } else {
+        socketService.unpinMessage(messageId, async (ack) => {
+          if (!ack || !ack.success) {
+            try {
+              await unpinMessage(messageId);
+            } catch (restErr) {
+              setError(restErr.message || 'Failed to unpin message.');
+            }
+          }
+        });
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to update message pin state.');
+    }
+  };
+
   // Handle Enter / Shift + Enter
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -347,8 +423,11 @@ export const ChatPage = () => {
             </div>
           </div>
 
-          {/* Right: Socket Connection Pill & User Persona */}
+          {/* Right: Socket Connection Pill & Notifications & User Persona */}
           <div className="flex items-center gap-3 flex-shrink-0">
+            {/* Notification Bell Dropdown */}
+            <NotificationDropdown />
+
             {/* Socket Status Pill */}
             <div
               className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono border transition-colors ${
@@ -404,6 +483,65 @@ export const ChatPage = () => {
         {/* Messages Stream Card */}
         <div className="flex-1 bg-[#0b0f19]/80 backdrop-blur-xl border border-white/[0.08] rounded-3xl p-4 sm:p-6 flex flex-col justify-between overflow-hidden shadow-2xl relative min-h-[480px]">
           
+          {/* Pinned Messages Tray */}
+          {pinnedMessages.length > 0 && (
+            <div className="mb-4 rounded-2xl bg-indigo-950/40 border border-indigo-500/30 p-3 sm:p-4 shadow-md flex-shrink-0">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-xs font-semibold text-indigo-300">
+                  <Pin className="w-3.5 h-3.5 rotate-45 text-indigo-400" />
+                  <span>Pinned Messages ({pinnedMessages.length})</span>
+                </div>
+                {pinnedMessages.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => setPinnedExpanded(!pinnedExpanded)}
+                    className="inline-flex items-center gap-1 text-[11px] text-slate-400 hover:text-white transition-colors"
+                  >
+                    <span>{pinnedExpanded ? 'Collapse' : 'Show all'}</span>
+                    <ChevronDown
+                      className={`w-3 h-3 transition-transform ${
+                        pinnedExpanded ? 'rotate-180' : ''
+                      }`}
+                    />
+                  </button>
+                )}
+              </div>
+
+              {/* Pinned item(s) */}
+              <div className="mt-2.5 space-y-2">
+                {(pinnedExpanded ? pinnedMessages : [pinnedMessages[0]]).map((pMsg) => (
+                  <div
+                    key={pMsg.id}
+                    className="flex items-center justify-between gap-3 text-xs bg-slate-900/80 border border-white/[0.06] rounded-xl px-3 py-2"
+                  >
+                    <div className="flex items-center gap-2 min-w-0 overflow-hidden">
+                      <span className="text-base flex-shrink-0">
+                        {pMsg.sender?.anonymousAvatar || '🎭'}
+                      </span>
+                      <span className="font-semibold text-indigo-300 flex-shrink-0">
+                        {pMsg.sender?.anonymousName}:
+                      </span>
+                      <span className="text-slate-200 truncate">
+                        "{pMsg.content}"
+                      </span>
+                    </div>
+
+                    {user?.role === 'admin' && (
+                      <button
+                        type="button"
+                        onClick={() => handleTogglePin(pMsg.id, false)}
+                        title="Unpin message"
+                        className="text-[10px] text-slate-400 hover:text-rose-300 font-medium px-2 py-0.5 rounded bg-slate-800 border border-slate-700 hover:bg-slate-700 transition-colors flex-shrink-0"
+                      >
+                        Unpin
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Scrollable Message Feed Area */}
           <div className="flex-1 overflow-y-auto space-y-4 pr-1 sm:pr-2">
             
@@ -444,6 +582,7 @@ export const ChatPage = () => {
                   onReactionToggle={handleReactionToggle}
                   onDeleteMessage={handleDeleteMessage}
                   onReportMessage={handleReportMessage}
+                  onTogglePin={handleTogglePin}
                 />
               ))}
 

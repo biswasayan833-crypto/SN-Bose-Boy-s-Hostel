@@ -7,7 +7,10 @@ import {
   addReaction,
   removeReaction,
   deleteMessage,
+  pinMessage,
+  unpinMessage,
 } from '../services/message.service.js';
+import { markRoomAsRead } from '../services/room.service.js';
 import { logger } from '../utils/logger.js';
 
 let ioInstance = null;
@@ -67,6 +70,14 @@ export const initSocket = (httpServer) => {
     logger.info(
       `[Socket] Student connected: ${student.anonymousName} (${student.year}) [Socket ID: ${socket.id}]`
     );
+
+    // Join private channel for direct individual notifications
+    socket.join(`user:${student._id.toString()}`);
+
+    // Join year-specific room for authorized real-time unread broadcasts
+    if (student.year) {
+      socket.join(`year:${student.year}`);
+    }
 
     /**
      * Join Room Event
@@ -151,6 +162,22 @@ export const initSocket = (httpServer) => {
     });
 
     /**
+     * Mark Room as Read Event
+     * Client emits: 'mark_room_read', { roomId }
+     */
+    socket.on('mark_room_read', async (data, callback) => {
+      try {
+        const roomId = data?.roomId || data?.roomSlug;
+        if (roomId) {
+          const result = await markRoomAsRead({ roomIdOrSlug: roomId, user: student });
+          if (callback) callback({ success: true, ...result });
+        }
+      } catch (err) {
+        if (callback) callback({ success: false, message: err.message });
+      }
+    });
+
+    /**
      * Send Message Event
      * Client emits: 'send_message', { roomId, content }
      */
@@ -174,6 +201,25 @@ export const initSocket = (httpServer) => {
 
         // Broadcast to all clients in the room (including sender)
         io.to(roomId).emit('new_message', safeMessage);
+
+        // Broadcast unread update to authorized clients
+        try {
+          const roomDoc = await Room.findById(roomId);
+          if (roomDoc) {
+            const unreadPayload = {
+              roomId: safeMessage.room,
+              roomSlug: roomDoc.slug,
+              senderId: student._id.toString(),
+            };
+            if (roomDoc.allowedYear) {
+              io.to(`year:${roomDoc.allowedYear}`).emit('room:unread_updated', unreadPayload);
+            } else {
+              io.emit('room:unread_updated', unreadPayload);
+            }
+          }
+        } catch (unreadErr) {
+          logger.debug(`[Socket] Could not broadcast unread update: ${unreadErr.message}`);
+        }
 
         logger.info(
           `[Socket] Message broadcast to room ${roomId} from ${student.anonymousName} (${student.year})`
@@ -315,6 +361,79 @@ export const initSocket = (httpServer) => {
       } catch (err) {
         logger.error(`[Socket] Delete message error: ${err.message}`);
         const errPayload = { message: err.message || 'Failed to delete message.' };
+        socket.emit('room_error', errPayload);
+        if (callback) callback({ success: false, ...errPayload });
+      }
+    });
+
+    /**
+     * Pin Message Event
+     * Client emits: 'pin_message', { messageId }
+     */
+    socket.on('pin_message', async (data, callback) => {
+      try {
+        const { messageId } = data || {};
+        if (!messageId) {
+          const errPayload = { message: 'messageId is required to pin message.' };
+          socket.emit('room_error', errPayload);
+          if (callback) callback({ success: false, ...errPayload });
+          return;
+        }
+
+        const safeMessage = await pinMessage({
+          messageId,
+          user: student,
+        });
+
+        // Broadcast to all clients in the room
+        io.to(safeMessage.room).emit('message:pinned', safeMessage);
+
+        logger.info(
+          `[Socket] Message pinned: ${messageId} in room ${safeMessage.room} by admin ${student.anonymousName}`
+        );
+
+        if (callback) callback({ success: true, message: safeMessage });
+      } catch (err) {
+        logger.error(`[Socket] Pin message error: ${err.message}`);
+        const errPayload = { message: err.message || 'Failed to pin message.' };
+        socket.emit('room_error', errPayload);
+        if (callback) callback({ success: false, ...errPayload });
+      }
+    });
+
+    /**
+     * Unpin Message Event
+     * Client emits: 'unpin_message', { messageId }
+     */
+    socket.on('unpin_message', async (data, callback) => {
+      try {
+        const { messageId } = data || {};
+        if (!messageId) {
+          const errPayload = { message: 'messageId is required to unpin message.' };
+          socket.emit('room_error', errPayload);
+          if (callback) callback({ success: false, ...errPayload });
+          return;
+        }
+
+        const safeMessage = await unpinMessage({
+          messageId,
+          user: student,
+        });
+
+        // Broadcast to all clients in the room
+        io.to(safeMessage.room).emit('message:unpinned', {
+          messageId: safeMessage.id,
+          roomId: safeMessage.room,
+        });
+
+        logger.info(
+          `[Socket] Message unpinned: ${messageId} in room ${safeMessage.room} by admin ${student.anonymousName}`
+        );
+
+        if (callback) callback({ success: true, message: safeMessage });
+      } catch (err) {
+        logger.error(`[Socket] Unpin message error: ${err.message}`);
+        const errPayload = { message: err.message || 'Failed to unpin message.' };
         socket.emit('room_error', errPayload);
         if (callback) callback({ success: false, ...errPayload });
       }

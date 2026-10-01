@@ -17,14 +17,44 @@ export const getMessages = async (roomId, { page = 1, limit = 50 } = {}) => {
   return response.data;
 };
 
+export const getUnreadRooms = async () => {
+  const response = await api.get('/rooms/unread');
+  return response.data;
+};
+
+export const markRoomAsRead = async (roomId) => {
+  const response = await api.patch(`/rooms/${roomId}/read`);
+  return response.data;
+};
+
 export const sendMessage = async (roomId, content) => {
   const response = await api.post(`/rooms/${roomId}/messages`, { content });
+  return response.data;
+};
+
+export const getPinnedMessages = async (roomId) => {
+  const response = await api.get(`/rooms/${roomId}/pinned`);
+  return response.data;
+};
+
+export const pinMessage = async (messageId) => {
+  const response = await api.patch(`/messages/${messageId}/pin`);
+  return response.data;
+};
+
+export const unpinMessage = async (messageId) => {
+  const response = await api.patch(`/messages/${messageId}/unpin`);
   return response.data;
 };
 
 export default {
   getRooms,
   getRoom,
+  getUnreadRooms,
+  markRoomAsRead,
   getMessages,
   sendMessage,
+  getPinnedMessages,
+  pinMessage,
+  unpinMessage,
 };
