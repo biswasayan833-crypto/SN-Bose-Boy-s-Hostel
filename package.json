@@ -1,0 +1,12 @@
+{
+  "name": "sn-bose-hostel-workspace",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Workspace root for Prof. S.N. Bose Boys Hostel Platform",
+  "scripts": {
+    "dev": "npm --prefix hostel-community run dev",
+    "client": "npm --prefix hostel-community/client run dev",
+    "server": "npm --prefix hostel-community/server run dev",
+    "build": "npm --prefix hostel-community/client run build"
+  }
+}

@@ -1,0 +1,6 @@
+# Mongoose models directory for Prof. S.N. Bose Boys Hostel Platform
+# Planned models:
+# - User (internal identity, student ID/room verification, password hash, role)
+# - Persona / AnonymousIdentity (pseudonyms, avatars, badges)
+# - Room (Global Room, 1st Year, 2nd Year, 3rd Year, 4th Year)
+# - Message / Post (anonymous messages, timestamps, reactions)

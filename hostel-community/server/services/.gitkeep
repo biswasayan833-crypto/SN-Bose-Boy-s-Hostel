@@ -1,0 +1,6 @@
+# Business logic and services directory
+# Planned services:
+# - auth.service.js
+# - identity.service.js (generates anonymous avatars/nicknames)
+# - moderation.service.js (safety, profanity, report flags)
+# - room.service.js

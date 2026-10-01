@@ -1,0 +1,31 @@
+{
+  "name": "hostel-community",
+  "version": "1.0.0",
+  "description": "Private student community platform for Prof. S.N. Bose Boys Hostel (MERN Stack)",
+  "private": true,
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "dev": "concurrently -n \"SERVER,CLIENT\" -c \"cyan,magenta\" \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
+    "dev:client": "npm run dev --prefix client",
+    "dev:server": "npm run dev --prefix server",
+    "build": "npm run build --prefix client",
+    "install:all": "npm install && npm install --prefix client && npm install --prefix server"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  },
+  "keywords": [
+    "mern",
+    "sn-bose-hostel",
+    "student-community",
+    "anonymous-social",
+    "express",
+    "react",
+    "mongodb"
+  ],
+  "author": "Prof. S.N. Bose Boys Hostel Tech Team",
+  "license": "ISC"
+}
