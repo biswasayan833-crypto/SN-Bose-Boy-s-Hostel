@@ -17,6 +17,7 @@ import {
   Megaphone,
   BarChart2,
   Plus,
+  Search,
 } from 'lucide-react';
 
 import { useAuth } from '../context/AuthContext';
@@ -216,7 +217,15 @@ export const Dashboard = () => {
 
             {/* Right Action Menu: Health Status + Notifications + Anonymous Profile Menu */}
             <div className="flex items-center gap-3">
-              
+              {/* Search & Discovery Quick Link */}
+              <Link
+                to="/search"
+                className="p-2 rounded-xl text-slate-300 hover:text-white bg-slate-900 border border-slate-700/80 hover:border-indigo-500/50 hover:bg-slate-800 transition-all shadow-sm"
+                title="Search & Discovery"
+              >
+                <Search className="w-4 h-4 text-indigo-400" />
+              </Link>
+
               {/* Notifications Dropdown */}
               <NotificationDropdown />
 
@@ -543,6 +552,28 @@ export const Dashboard = () => {
             </div>
           </div>
         )}
+
+        {/* Quick Search & Discovery Card */}
+        <div className="p-5 rounded-3xl bg-gradient-to-r from-indigo-950/40 via-slate-900/80 to-cyan-950/30 border border-indigo-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl">
+          <div className="flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-400 flex-shrink-0 shadow-md">
+              <Search className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-white">Search Community Knowledge</h3>
+              <p className="text-xs text-slate-400">
+                Find past discussion messages, official notices, polls, and channels across the hostel.
+              </p>
+            </div>
+          </div>
+          <Link
+            to="/search"
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md shadow-indigo-600/30 transition-all flex-shrink-0"
+          >
+            <span>Open Search Hub</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
 
         {/* Accessible Channels Section */}
         <div id="rooms" className="space-y-6">

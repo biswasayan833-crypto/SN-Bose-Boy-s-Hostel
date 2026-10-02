@@ -8,6 +8,7 @@ import notificationRoutes from './notification.routes.js';
 import profileRoutes from './profile.routes.js';
 import announcementRoutes from './announcement.routes.js';
 import pollRoutes from './poll.routes.js';
+import searchRoutes from './search.routes.js';
 
 const router = Router();
 
@@ -34,6 +35,9 @@ router.use('/announcements', announcementRoutes);
 
 // Community Polls endpoints
 router.use('/polls', pollRoutes);
+
+// Search & Discovery endpoints
+router.use('/search', searchRoutes);
 
 // Admin Moderation endpoints
 router.use('/admin', adminRoutes);

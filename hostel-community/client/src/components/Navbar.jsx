@@ -11,6 +11,7 @@ import {
   LayoutDashboard,
   User,
   Megaphone,
+  Search,
 } from 'lucide-react';
 import { useHealthCheck } from '../hooks/useHealthCheck';
 
@@ -118,6 +119,14 @@ export const Navbar = () => {
 
             {isAuthenticated ? (
               <div className="flex items-center gap-3">
+                <Link
+                  to="/search"
+                  className="p-2 rounded-xl text-slate-300 hover:text-white bg-slate-900 border border-slate-700/80 hover:border-indigo-500/50 hover:bg-slate-800 transition-all shadow-sm"
+                  title="Search & Discovery"
+                >
+                  <Search className="w-4 h-4 text-indigo-400" />
+                </Link>
+
                 <NotificationDropdown />
 
                 {user?.role === 'admin' && (
@@ -282,6 +291,15 @@ export const Navbar = () => {
                     className="w-full py-2.5 rounded-xl text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 transition-colors flex items-center justify-center gap-2"
                   >
                     <span className="truncate px-2">Dashboard ({user?.anonymousName})</span>
+                  </Link>
+
+                  <Link
+                    to="/search"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="w-full py-2.5 rounded-xl text-sm font-semibold text-slate-200 bg-slate-800/80 hover:bg-slate-700 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <Search className="w-4 h-4 text-indigo-400" />
+                    <span>Search & Discovery</span>
                   </Link>
 
                   <Link

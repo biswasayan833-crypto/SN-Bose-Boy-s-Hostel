@@ -133,9 +133,10 @@ messageSchema.pre('save', async function (next) {
   next();
 });
 
-// Compound indexes for fast room message retrieval
+// Compound indexes for fast room message retrieval and search
 messageSchema.index({ room: 1, createdAt: 1 });
 messageSchema.index({ room: 1, createdAt: -1 });
+messageSchema.index({ room: 1, isDeleted: 1, createdAt: -1 });
 messageSchema.index({ room: 1, isPinned: 1, pinnedAt: -1 });
 messageSchema.index({ 'reactions.user': 1 });
 

@@ -13,6 +13,7 @@ import ProfilePage from './pages/ProfilePage';
 import ChatPage from './pages/ChatPage';
 import AdminReports from './pages/AdminReports';
 import AdminAnnouncements from './pages/AdminAnnouncements';
+import SearchPage from './pages/SearchPage';
 import NotFound from './pages/NotFound';
 
 
@@ -76,6 +77,16 @@ export const App = () => {
               element={
                 <ProtectedRoute>
                   <ChatPage />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Protected Community Search & Discovery Hub */}
+            <Route
+              path="/search"
+              element={
+                <ProtectedRoute>
+                  <SearchPage />
                 </ProtectedRoute>
               }
             />

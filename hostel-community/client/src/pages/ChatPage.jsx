@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useSearchParams, Link } from 'react-router-dom';
 import {
   ArrowLeft,
   Send,
@@ -14,6 +14,7 @@ import {
   Paperclip,
   FileText,
   X,
+  Search,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -32,10 +33,12 @@ import NotificationDropdown from '../components/NotificationDropdown';
 
 export const ChatPage = () => {
   const { slug } = useParams();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
 
   const [room, setRoom] = useState(null);
   const [messages, setMessages] = useState([]);
+  const [highlightedMessageId, setHighlightedMessageId] = useState(null);
   const [pinnedMessages, setPinnedMessages] = useState([]);
   const [pinnedExpanded, setPinnedExpanded] = useState(false);
   const [inputContent, setInputContent] = useState('');
@@ -209,10 +212,22 @@ export const ChatPage = () => {
     };
   }, [room]);
 
-  // 3. Scroll to bottom when messages update
+  // 3. Scroll to targeted message or bottom when messages update
+  const targetMessageId = searchParams.get('messageId');
+
   useEffect(() => {
-    scrollToBottom(messages.length <= 10 ? 'auto' : 'smooth');
-  }, [messages.length]);
+    if (targetMessageId && messages.length > 0) {
+      const el = document.getElementById(`msg-${targetMessageId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setHighlightedMessageId(targetMessageId);
+        const timer = setTimeout(() => setHighlightedMessageId(null), 3500);
+        return () => clearTimeout(timer);
+      }
+    } else if (!targetMessageId && messages.length > 0) {
+      scrollToBottom(messages.length <= 10 ? 'auto' : 'smooth');
+    }
+  }, [messages.length, targetMessageId]);
 
   // Handle file selection
   const handleFileSelect = (e) => {
@@ -517,6 +532,17 @@ export const ChatPage = () => {
             {/* Notification Bell Dropdown */}
             <NotificationDropdown />
 
+            {/* Room Search Link */}
+            {room && (
+              <Link
+                to={`/search?roomId=${room._id}`}
+                className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white hover:border-indigo-500/40 transition-colors"
+                title={`Search messages in ${room.name}`}
+              >
+                <Search className="w-4 h-4" />
+              </Link>
+            )}
+
             {/* Socket Status Pill */}
             <div
               className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono border transition-colors ${
@@ -664,15 +690,24 @@ export const ChatPage = () => {
             {/* Messages List Rendered via MessageBubble */}
             {!loading &&
               messages.map((msg) => (
-                <MessageBubble
+                <div
                   key={msg.id}
-                  message={msg}
-                  currentUser={user}
-                  onReactionToggle={handleReactionToggle}
-                  onDeleteMessage={handleDeleteMessage}
-                  onReportMessage={handleReportMessage}
-                  onTogglePin={handleTogglePin}
-                />
+                  id={`msg-${msg.id}`}
+                  className={`transition-all duration-700 rounded-3xl ${
+                    highlightedMessageId === msg.id
+                      ? 'ring-2 ring-indigo-500 bg-indigo-500/10 p-1 shadow-lg shadow-indigo-500/30'
+                      : ''
+                  }`}
+                >
+                  <MessageBubble
+                    message={msg}
+                    currentUser={user}
+                    onReactionToggle={handleReactionToggle}
+                    onDeleteMessage={handleDeleteMessage}
+                    onReportMessage={handleReportMessage}
+                    onTogglePin={handleTogglePin}
+                  />
+                </div>
               ))}
 
             <div ref={messagesEndRef} />
