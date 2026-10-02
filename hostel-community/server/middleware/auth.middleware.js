@@ -8,21 +8,22 @@ import { errorResponse } from '../utils/responseHelper.js';
  */
 export const requireAuth = async (req, res, next) => {
   try {
+    let token = null;
     const authHeader = req.headers.authorization;
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.split(' ')[1];
+    } else if (req.query && req.query.token) {
+      token = req.query.token;
+    }
+
+    if (!token || token.trim() === '') {
       return errorResponse(
         res,
         'Authentication required. Please provide a valid Bearer token.',
         null,
         401
       );
-    }
-
-    const token = authHeader.split(' ')[1];
-
-    if (!token || token.trim() === '') {
-      return errorResponse(res, 'Authentication token is empty.', null, 401);
     }
 
     const secret = process.env.JWT_SECRET;

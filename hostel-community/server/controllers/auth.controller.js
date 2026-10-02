@@ -7,14 +7,24 @@ import { successResponse, errorResponse } from '../utils/responseHelper.js';
  */
 export const register = async (req, res) => {
   try {
-    const { fullName, email, password, year } = req.body;
-    const result = await registerStudent({ fullName, email, password, year });
+    const { fullName, email, password, year, anonymousName, anonymousAvatar } = req.body;
+    const result = await registerStudent({
+      fullName,
+      email,
+      password,
+      year,
+      anonymousName,
+      anonymousAvatar,
+    });
     return successResponse(res, 'Registration successful', result, 201);
   } catch (error) {
-    const statusCode = error.statusCode || (error.code === 11000 ? 409 : 400);
+    const isConflict = error.statusCode === 409 || error.code === 11000;
+    const statusCode = error.statusCode || (isConflict ? 409 : 400);
     const message =
       error.code === 11000
-        ? 'An account with this email address already exists.'
+        ? (error.keyPattern?.anonymousIdentityKey || error.message?.includes('anonymousIdentityKey')
+            ? 'This anonymous identity is already in use. Please choose another.'
+            : 'An account with this email address already exists.')
         : error.message || 'Registration failed.';
     return errorResponse(res, message, null, statusCode);
   }

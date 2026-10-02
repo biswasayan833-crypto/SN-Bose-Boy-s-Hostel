@@ -11,6 +11,9 @@ import {
   Lock,
   Pin,
   ChevronDown,
+  Paperclip,
+  FileText,
+  X,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -24,6 +27,7 @@ import {
 import socketService from '../services/socketService';
 import messageService from '../services/messageService';
 import MessageBubble from '../components/MessageBubble';
+import { getAvatarDisplay } from '../components/AvatarPicker';
 import NotificationDropdown from '../components/NotificationDropdown';
 
 export const ChatPage = () => {
@@ -35,6 +39,9 @@ export const ChatPage = () => {
   const [pinnedMessages, setPinnedMessages] = useState([]);
   const [pinnedExpanded, setPinnedExpanded] = useState(false);
   const [inputContent, setInputContent] = useState('');
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [filePreviewUrl, setFilePreviewUrl] = useState('');
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
@@ -42,6 +49,7 @@ export const ChatPage = () => {
 
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   // Auto-scroll helper
   const scrollToBottom = (behavior = 'smooth') => {
@@ -206,30 +214,111 @@ export const ChatPage = () => {
     scrollToBottom(messages.length <= 10 ? 'auto' : 'smooth');
   }, [messages.length]);
 
-  // Handle message submission
+  // Handle file selection
+  const handleFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setError('');
+
+    // Check size limit: 5 MB
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      setError(`File size (${(file.size / (1024 * 1024)).toFixed(2)} MB) exceeds maximum allowed limit of 5 MB.`);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    // Check extension
+    const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+    const allowed = ['.jpg', '.jpeg', '.png', '.webp', '.pdf'];
+    if (!allowed.includes(ext)) {
+      setError(`Unsupported file type '${ext}'. Please select a JPG, JPEG, PNG, WEBP, or PDF file.`);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    setSelectedFile(file);
+    if (file.type.startsWith('image/')) {
+      const url = URL.createObjectURL(file);
+      setFilePreviewUrl(url);
+    } else {
+      setFilePreviewUrl('');
+    }
+  };
+
+  // Remove selected file before sending
+  const handleRemoveFile = () => {
+    if (filePreviewUrl) {
+      URL.revokeObjectURL(filePreviewUrl);
+    }
+    setSelectedFile(null);
+    setFilePreviewUrl('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  // Helper to format file size in UI
+  const formatFileSize = (bytes) => {
+    if (!bytes || bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+  };
+
+  // Handle message submission (supports both text and attachments)
   const handleSendMessage = async (e) => {
     if (e) e.preventDefault();
 
     const trimmed = inputContent.trim();
-    if (!trimmed || sending || !room) return;
+    if ((!trimmed && !selectedFile) || sending || !room) return;
 
     try {
       setSending(true);
+      setError('');
 
-      // Send via Socket.IO
-      socketService.sendMessage(room._id, trimmed, (ack) => {
-        setSending(false);
-        if (ack && ack.success) {
-          setInputContent('');
-          if (textareaRef.current) {
-            textareaRef.current.style.height = 'auto';
-          }
-        } else if (ack && !ack.success) {
-          setError(ack.message || 'Failed to send message.');
+      if (selectedFile) {
+        // Upload attachment via multipart/form-data REST endpoint
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+        if (trimmed) {
+          formData.append('content', trimmed);
         }
-      });
+
+        await messageService.uploadAttachment(room._id, formData, (progressEvent) => {
+          if (progressEvent.total) {
+            const pct = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            setUploadProgress(pct);
+          }
+        });
+
+        // Clear input and attachments on success
+        handleRemoveFile();
+        setInputContent('');
+        if (textareaRef.current) {
+          textareaRef.current.style.height = 'auto';
+        }
+        setUploadProgress(0);
+        setSending(false);
+      } else {
+        // Send regular text message via Socket.IO
+        socketService.sendMessage(room._id, trimmed, (ack) => {
+          setSending(false);
+          if (ack && ack.success) {
+            setInputContent('');
+            if (textareaRef.current) {
+              textareaRef.current.style.height = 'auto';
+            }
+          } else if (ack && !ack.success) {
+            setError(ack.message || 'Failed to send message.');
+          }
+        });
+      }
     } catch (err) {
       setSending(false);
+      setUploadProgress(0);
       setError(err.message || 'Message dispatch failed.');
     }
   };
@@ -451,10 +540,10 @@ export const ChatPage = () => {
             </div>
 
             {/* User Anonymous Pill */}
-            <div className="hidden md:flex items-center gap-2 bg-slate-900/90 border border-slate-800 px-3 py-1 rounded-xl text-xs font-semibold">
-              <span className="text-base">{user?.anonymousAvatar}</span>
-              <span className="text-slate-200">{user?.anonymousName}</span>
-              <span className="text-[10px] font-mono text-cyan-300">({user?.year})</span>
+            <div className="hidden md:flex items-center gap-2 bg-slate-900/90 border border-slate-800 px-3 py-1 rounded-xl text-xs font-semibold max-w-[240px]">
+              <span className="text-base flex-shrink-0">{getAvatarDisplay(user?.anonymousAvatar)}</span>
+              <span className="text-slate-200 truncate">{user?.anonymousName}</span>
+              <span className="text-[10px] font-mono text-cyan-300 flex-shrink-0">({user?.year})</span>
             </div>
           </div>
 
@@ -516,7 +605,7 @@ export const ChatPage = () => {
                   >
                     <div className="flex items-center gap-2 min-w-0 overflow-hidden">
                       <span className="text-base flex-shrink-0">
-                        {pMsg.sender?.anonymousAvatar || '🎭'}
+                        {getAvatarDisplay(pMsg.sender?.anonymousAvatar)}
                       </span>
                       <span className="font-semibold text-indigo-300 flex-shrink-0">
                         {pMsg.sender?.anonymousName}:
@@ -592,7 +681,66 @@ export const ChatPage = () => {
           {/* Composer Box */}
           <div className="mt-4 pt-3 border-t border-white/[0.08] space-y-2">
             
+            {/* Selected File Preview Banner (if file selected) */}
+            {selectedFile && (
+              <div className="flex items-center justify-between gap-3 p-2.5 rounded-2xl bg-slate-900/95 border border-indigo-500/40 animate-in fade-in slide-in-from-bottom-2">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  {filePreviewUrl ? (
+                    <img
+                      src={filePreviewUrl}
+                      alt="Upload preview"
+                      className="w-10 h-10 rounded-xl object-cover border border-white/10 flex-shrink-0"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center flex-shrink-0">
+                      <FileText className="w-5 h-5 text-rose-400" />
+                    </div>
+                  )}
+
+                  <div className="min-w-0">
+                    <div className="text-xs font-semibold text-white truncate max-w-[200px] sm:max-w-md">
+                      {selectedFile.name}
+                    </div>
+                    <div className="text-[10px] text-slate-400 font-mono">
+                      {formatFileSize(selectedFile.size)}
+                      {uploadProgress > 0 && uploadProgress < 100 && (
+                        <span className="text-indigo-400 ml-2">Uploading {uploadProgress}%</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleRemoveFile}
+                  disabled={sending}
+                  className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors flex-shrink-0"
+                  title="Remove attachment"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
             <form onSubmit={handleSendMessage} className="relative flex items-end gap-2">
+              {/* Attachment Picker Button */}
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileSelect}
+                accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf"
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={loading || sending || !room}
+                className="h-[46px] w-[46px] rounded-2xl bg-slate-900/90 border border-slate-700/80 hover:border-indigo-500/60 hover:bg-slate-800 text-slate-300 hover:text-white flex items-center justify-center shadow-md transition-all disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0 active:scale-95"
+                title="Attach image or PDF (Max 5 MB)"
+              >
+                <Paperclip className="w-4 h-4" />
+              </button>
+
               <div className="relative flex-1">
                 <textarea
                   ref={textareaRef}
@@ -600,9 +748,13 @@ export const ChatPage = () => {
                   value={inputContent}
                   onChange={handleInput}
                   onKeyDown={handleKeyDown}
-                  placeholder={`Type an anonymous message in ${room?.name || 'this room'}... (Enter to send)`}
+                  placeholder={
+                    selectedFile
+                      ? `Add an optional caption for ${selectedFile.name}...`
+                      : `Type an anonymous message in ${room?.name || 'this room'}... (Enter to send)`
+                  }
                   maxLength={1000}
-                  disabled={loading || !room}
+                  disabled={loading || !room || sending}
                   className="w-full pl-4 pr-12 py-3 rounded-2xl bg-slate-900/90 border border-slate-700/80 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-sm text-white placeholder-slate-500 resize-none transition-colors max-h-32 disabled:opacity-50"
                 />
 
@@ -613,7 +765,7 @@ export const ChatPage = () => {
 
               <button
                 type="submit"
-                disabled={!inputContent.trim() || sending || loading || !room}
+                disabled={(!inputContent.trim() && !selectedFile) || sending || loading || !room}
                 className="h-[46px] w-[46px] rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white flex items-center justify-center shadow-lg shadow-indigo-600/30 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0 active:scale-95"
                 title="Send Message"
               >

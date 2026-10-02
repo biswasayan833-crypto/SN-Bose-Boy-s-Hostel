@@ -36,6 +36,20 @@ export const messageService = {
     const response = await api.post(`/messages/${messageId}/report`, { reason, notes });
     return response.data;
   },
+
+  /**
+   * Upload an attachment and create message in an authorized room
+   * POST /api/messages/:roomId/attachments
+   */
+  uploadAttachment: async (roomId, formData, onUploadProgress) => {
+    const response = await api.post(`/messages/${roomId}/attachments`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      onUploadProgress,
+    });
+    return response.data;
+  },
 };
 
 export default messageService;

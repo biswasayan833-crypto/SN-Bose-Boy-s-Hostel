@@ -8,7 +8,11 @@ import {
   AlertCircle,
   CheckCircle2,
   Pin,
+  FileText,
+  Download,
+  ExternalLink,
 } from 'lucide-react';
+import { getAvatarDisplay } from './AvatarPicker';
 
 export const REACTION_CONFIG = [
   { type: 'like', emoji: '👍', label: 'Like' },
@@ -29,6 +33,7 @@ export const MessageBubble = ({
   const [menuOpen, setMenuOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [reportModalOpen, setReportModalOpen] = useState(false);
+  const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
   const [selectedReason, setSelectedReason] = useState('spam');
   const [reportNotes, setReportNotes] = useState('');
   const [submittingAction, setSubmittingAction] = useState(false);
@@ -67,6 +72,24 @@ export const MessageBubble = ({
     } catch {
       return '';
     }
+  };
+
+  // Format file size helper
+  const formatFileSize = (bytes) => {
+    if (!bytes || bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+  };
+
+  // Helper to build authenticated URL for image/file preview
+  const getAuthAttachmentUrl = (rawUrl) => {
+    if (!rawUrl) return '';
+    const token = localStorage.getItem('snbose_auth_token');
+    if (!token) return rawUrl;
+    const separator = rawUrl.includes('?') ? '&' : '?';
+    return `${rawUrl}${separator}token=${encodeURIComponent(token)}`;
   };
 
   // Check if current user has reacted with a given type
@@ -150,7 +173,7 @@ export const MessageBubble = ({
     >
       {/* Sender Persona Metadata */}
       <div className="flex items-center gap-2 px-1 text-[11px] text-slate-400">
-        <span className="text-sm">{message.sender?.anonymousAvatar || '🎭'}</span>
+        <span className="text-sm">{getAvatarDisplay(message.sender?.anonymousAvatar)}</span>
         <span
           className={`font-semibold ${
             isCurrentUser ? 'text-indigo-300' : 'text-slate-200'
@@ -194,7 +217,72 @@ export const MessageBubble = ({
               <span>Message deleted</span>
             </div>
           ) : (
-            <p className="whitespace-pre-wrap">{message.content}</p>
+            <div className="space-y-2">
+              {/* Media Attachment Display */}
+              {message.attachment && (
+                <div className="rounded-xl overflow-hidden pt-0.5">
+                  {message.attachment.mimeType?.startsWith('image/') ? (
+                    /* Image Thumbnail Preview */
+                    <div className="space-y-1.5">
+                      <div
+                        onClick={() => setImagePreviewOpen(true)}
+                        className="relative rounded-xl overflow-hidden bg-black/40 border border-white/10 group/img cursor-pointer max-h-72 flex items-center justify-center hover:border-indigo-400/50 transition-colors"
+                        title="Click to view image"
+                      >
+                        <img
+                          src={getAuthAttachmentUrl(message.attachment.url)}
+                          alt={message.attachment.originalName}
+                          className="w-full h-auto max-h-72 object-contain rounded-xl hover:scale-[1.01] transition-transform duration-200"
+                          loading="lazy"
+                        />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                          <span className="p-2 rounded-xl bg-black/70 text-white backdrop-blur-md">
+                            <ExternalLink className="w-4 h-4" />
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between gap-2 text-[10px] text-slate-300 font-mono px-0.5">
+                        <span className="truncate max-w-[180px] sm:max-w-xs">{message.attachment.originalName}</span>
+                        <span className="flex-shrink-0 text-slate-400">({formatFileSize(message.attachment.size)})</span>
+                      </div>
+                    </div>
+                  ) : (
+                    /* PDF Document Card */
+                    <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-black/30 border border-white/10 hover:border-indigo-500/40 transition-colors">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-10 h-10 rounded-xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center flex-shrink-0">
+                          <FileText className="w-5 h-5 text-rose-400" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-xs font-bold text-white truncate max-w-[160px] sm:max-w-xs" title={message.attachment.originalName}>
+                            {message.attachment.originalName}
+                          </div>
+                          <div className="text-[10px] text-slate-400 font-mono">
+                            PDF • {formatFileSize(message.attachment.size)}
+                          </div>
+                        </div>
+                      </div>
+
+                      <a
+                        href={getAuthAttachmentUrl(message.attachment.url)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors flex items-center gap-1 text-xs font-medium flex-shrink-0"
+                        title="Open PDF"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">Open</span>
+                      </a>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Message text content */}
+              {message.content && (
+                <p className="whitespace-pre-wrap">{message.content}</p>
+              )}
+            </div>
           )}
         </div>
 
@@ -492,11 +580,47 @@ export const MessageBubble = ({
                 </div>
               </form>
             )}
-
           </div>
         </div>
       )}
 
+      {/* Full Image Preview Lightbox Modal */}
+      {imagePreviewOpen && message.attachment && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200"
+          onClick={() => setImagePreviewOpen(false)}
+        >
+          <div className="relative max-w-4xl max-h-[90vh] flex flex-col items-center">
+            <button
+              onClick={() => setImagePreviewOpen(false)}
+              className="absolute -top-10 right-0 p-1.5 rounded-full bg-slate-800 text-slate-300 hover:text-white transition-colors"
+              title="Close image"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <img
+              src={getAuthAttachmentUrl(message.attachment.url)}
+              alt={message.attachment.originalName}
+              className="max-w-full max-h-[80vh] rounded-2xl object-contain shadow-2xl border border-white/10"
+              onClick={(e) => e.stopPropagation()}
+            />
+            <div
+              className="mt-3 flex items-center justify-between w-full text-xs text-slate-300 px-2"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <span className="font-semibold truncate max-w-md">{message.attachment.originalName}</span>
+              <a
+                href={`${getAuthAttachmentUrl(message.attachment.url)}&download=true`}
+                download={message.attachment.originalName}
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow transition-colors"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Download</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

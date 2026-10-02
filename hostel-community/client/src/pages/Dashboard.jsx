@@ -28,6 +28,7 @@ import socketService from '../services/socketService';
 import NotificationDropdown from '../components/NotificationDropdown';
 import AnnouncementCard from '../components/AnnouncementCard';
 import PollCard from '../components/PollCard';
+import { getAvatarDisplay } from '../components/AvatarPicker';
 
 export const Dashboard = () => {
   const { user, logout } = useAuth();
@@ -236,20 +237,20 @@ export const Dashboard = () => {
               <div className="relative">
                 <button
                   onClick={() => setMenuOpen(!menuOpen)}
-                  className="flex items-center gap-2.5 p-1.5 pr-3 rounded-xl bg-slate-900/90 border border-slate-700/80 hover:border-indigo-500/50 transition-all text-left group"
+                  className="flex items-center gap-2.5 p-1.5 pr-3 rounded-xl bg-slate-900/90 border border-slate-700/80 hover:border-indigo-500/50 transition-all text-left group max-w-[200px]"
                 >
-                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center text-lg shadow-sm">
-                    {user?.anonymousAvatar || '🎭'}
+                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center text-lg flex-shrink-0 shadow-sm">
+                    {getAvatarDisplay(user?.anonymousAvatar)}
                   </div>
-                  <div className="hidden sm:block text-left">
-                    <div className="text-xs font-bold text-white group-hover:text-indigo-300 transition-colors">
+                  <div className="hidden sm:block text-left min-w-0 flex-1">
+                    <div className="text-xs font-bold text-white group-hover:text-indigo-300 transition-colors truncate">
                       {user?.anonymousName || 'Anonymous Student'}
                     </div>
-                    <div className="text-[10px] font-mono text-cyan-300">
+                    <div className="text-[10px] font-mono text-cyan-300 truncate">
                       {user?.year}
                     </div>
                   </div>
-                  <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${menuOpen ? 'rotate-180' : ''}`} />
+                  <ChevronDown className={`w-4 h-4 text-slate-400 flex-shrink-0 transition-transform ${menuOpen ? 'rotate-180' : ''}`} />
                 </button>
 
                 {/* Dropdown Menu */}
@@ -258,13 +259,15 @@ export const Dashboard = () => {
                     
                     {/* Header in menu */}
                     <div className="border-b border-white/[0.08] pb-3 space-y-1">
-                      <div className="flex items-center gap-2.5">
-                        <span className="text-2xl">{user?.anonymousAvatar || '🎭'}</span>
-                        <div>
-                          <div className="text-sm font-bold text-white">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-10 h-10 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-2xl flex-shrink-0">
+                          {getAvatarDisplay(user?.anonymousAvatar)}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-bold text-white truncate" title={user?.anonymousName}>
                             {user?.anonymousName}
                           </div>
-                          <div className="text-xs font-mono text-indigo-400">
+                          <div className="text-xs font-mono text-indigo-400 truncate">
                             {user?.year} Resident
                           </div>
                         </div>
@@ -380,13 +383,17 @@ export const Dashboard = () => {
           <div className="bg-[#0b0f1a]/95 backdrop-blur-xl rounded-3xl p-6 sm:p-10 space-y-4">
             
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-              <div className="space-y-2">
+              <div className="space-y-2 min-w-0 flex-1">
                 <span className="text-xs uppercase font-mono tracking-wider text-slate-400">
                   Hostel Community Hub
                 </span>
-                <h1 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight flex items-center gap-3">
-                  <span>Welcome back, {user?.anonymousName}</span>
-                  <span>{user?.anonymousAvatar}</span>
+                <h1 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight flex flex-wrap items-center gap-2.5 sm:gap-3">
+                  <span className="min-w-0 truncate max-w-full">
+                    Welcome back, <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-indigo-100 to-cyan-200">{user?.anonymousName || 'Hostel Resident'}</span>
+                  </span>
+                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-slate-800/80 border border-indigo-500/20 flex items-center justify-center text-xl sm:text-2xl flex-shrink-0 shadow-sm">
+                    {getAvatarDisplay(user?.anonymousAvatar)}
+                  </div>
                 </h1>
                 <p className="text-sm text-slate-300">
                   Prof. S.N. Bose Boys Hostel •{' '}
@@ -395,24 +402,36 @@ export const Dashboard = () => {
               </div>
 
               {/* Identity Snapshot Card */}
-              <div className="flex-shrink-0 flex items-center gap-3.5 bg-slate-900/90 border border-indigo-500/30 px-5 py-3.5 rounded-2xl shadow-inner">
+              <div className="w-full sm:w-auto min-w-0 max-w-full sm:max-w-xs md:max-w-sm flex items-center gap-3.5 bg-slate-900/90 border border-indigo-500/30 px-4 py-3 sm:px-5 sm:py-3.5 rounded-2xl shadow-inner flex-shrink-0">
                 <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center text-2xl flex-shrink-0 shadow-md">
-                  {user?.anonymousAvatar || '🎭'}
+                  {getAvatarDisplay(user?.anonymousAvatar)}
                 </div>
-                <div className="text-left space-y-0.5">
-                  <div className="text-xs font-bold text-white flex items-center gap-1.5">
-                    <span>{user?.anonymousName}</span>
-                    <span className="text-emerald-400 font-mono text-[10px]">● Active</span>
+                <div className="min-w-0 flex-1 text-left space-y-1">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="text-xs font-bold text-white truncate" title={user?.anonymousName}>
+                      {user?.anonymousName}
+                    </span>
+                    <span className="text-emerald-400 font-mono text-[10px] flex-shrink-0">
+                      ● Active
+                    </span>
                   </div>
-                  <div className="text-[11px] text-cyan-300 font-mono">{user?.year}</div>
-                  <div className="text-[10px] text-slate-400">Your community identity</div>
-                  <Link
-                    to="/profile"
-                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-400 hover:text-indigo-300 transition-colors pt-0.5"
-                  >
-                    <span>Edit Profile</span>
-                    <ArrowRight className="w-3 h-3" />
-                  </Link>
+                  <div className="flex items-center gap-1.5">
+                    <span className="inline-block text-[11px] text-cyan-300 font-mono px-1.5 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/20 flex-shrink-0">
+                      {user?.year}
+                    </span>
+                    <span className="text-[10px] text-slate-400 truncate">
+                      Community Identity
+                    </span>
+                  </div>
+                  <div>
+                    <Link
+                      to="/profile"
+                      className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-400 hover:text-indigo-300 transition-colors pt-0.5"
+                    >
+                      <span>Edit Profile</span>
+                      <ArrowRight className="w-3 h-3" />
+                    </Link>
+                  </div>
                 </div>
               </div>
             </div>
@@ -675,28 +694,36 @@ export const Dashboard = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="relative w-full max-w-md bg-[#0c101d] border border-white/[0.1] rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
             <div className="flex items-center justify-between border-b border-white/[0.08] pb-4">
-              <div className="flex items-center gap-2.5">
-                <span className="text-2xl">{user?.anonymousAvatar}</span>
-                <div>
-                  <h3 className="text-base font-bold text-white">My Community Identity</h3>
-                  <p className="text-xs text-slate-400">Prof. S.N. Bose Boys Hostel</p>
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-2xl flex-shrink-0">
+                  {getAvatarDisplay(user?.anonymousAvatar)}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-base font-bold text-white truncate">My Community Identity</h3>
+                  <p className="text-xs text-slate-400 truncate">Prof. S.N. Bose Boys Hostel</p>
                 </div>
               </div>
               <button
                 onClick={() => setIdentityModalOpen(false)}
-                className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors flex-shrink-0"
               >
                 ✕
               </button>
             </div>
 
             <div className="p-6 rounded-2xl bg-gradient-to-br from-indigo-950/60 to-slate-900 border border-indigo-500/30 text-center space-y-4">
-              <div className="w-20 h-20 mx-auto rounded-2xl bg-slate-900/90 border border-white/10 flex items-center justify-center text-4xl shadow-inner">
-                {user?.anonymousAvatar}
+              <div className="w-20 h-20 mx-auto rounded-2xl bg-slate-900/90 border border-white/10 flex items-center justify-center text-4xl shadow-inner flex-shrink-0">
+                {getAvatarDisplay(user?.anonymousAvatar)}
               </div>
-              <div className="space-y-1">
-                <h4 className="text-xl font-bold text-white">{user?.anonymousName}</h4>
-                <p className="text-xs font-mono text-cyan-300">{user?.year} Resident</p>
+              <div className="space-y-1.5 min-w-0 px-2">
+                <h4 className="text-xl font-bold text-white break-words" title={user?.anonymousName}>
+                  {user?.anonymousName}
+                </h4>
+                <div className="pt-0.5">
+                  <span className="inline-block text-xs font-mono text-cyan-300 px-2.5 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/20">
+                    {user?.year} Resident
+                  </span>
+                </div>
               </div>
               <p className="text-xs text-slate-300 italic">
                 "Your real name is not displayed to other students in any room or live chat."

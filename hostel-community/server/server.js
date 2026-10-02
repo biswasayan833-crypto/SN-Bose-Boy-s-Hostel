@@ -4,6 +4,7 @@ import app from './app.js';
 import { connectDB } from './config/db.js';
 import { initSocket } from './socket/chat.socket.js';
 import { seedInitialRooms } from './services/room.service.js';
+import { migrateIdentities } from './utils/identityMigration.js';
 import { logger } from './utils/logger.js';
 
 // Load environment variables
@@ -23,6 +24,9 @@ const startServer = async () => {
 
     // Idempotently seed the four community rooms (Global, 2nd, 3rd, 4th Year)
     await seedInitialRooms();
+
+    // Idempotently ensure unique identity integrity and database index synchronization
+    await migrateIdentities();
 
     server.listen(PORT, () => {
       logger.info('====================================================');

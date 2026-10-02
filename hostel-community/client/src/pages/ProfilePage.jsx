@@ -13,7 +13,6 @@ import {
   Eye,
   EyeOff,
   Save,
-  MessageSquare,
   GraduationCap,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -22,7 +21,7 @@ import AvatarPicker, { PREDEFINED_AVATARS } from '../components/AvatarPicker';
 import NotificationDropdown from '../components/NotificationDropdown';
 
 export const ProfilePage = () => {
-  const { user, logout, updateUser } = useAuth();
+  const { logout, updateUser } = useAuth();
   const navigate = useNavigate();
 
   // Profile data state
@@ -121,7 +120,15 @@ export const ProfilePage = () => {
         setTimeout(() => setIdentitySuccess(''), 4000);
       }
     } catch (err) {
-      setIdentityError(err.message || 'Failed to update community identity.');
+      if (
+        err.status === 409 ||
+        err.message?.includes('already in use') ||
+        err.message?.includes('already being used')
+      ) {
+        setIdentityError('This anonymous identity is already being used. Please choose another.');
+      } else {
+        setIdentityError(err.message || 'Failed to update community identity.');
+      }
     } finally {
       setIdentitySaving(false);
     }
@@ -243,41 +250,41 @@ export const ProfilePage = () => {
               <div className="absolute -bottom-12 -left-12 w-48 h-48 rounded-full bg-cyan-500/10 blur-3xl pointer-events-none" />
 
               <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-                <div className="flex items-center gap-5">
+                <div className="flex items-center gap-4 sm:gap-5 min-w-0 flex-1">
                   <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-violet-600 via-indigo-600 to-cyan-500 p-[2px] shadow-xl shadow-indigo-600/30 flex-shrink-0">
                     <div className="w-full h-full bg-[#090d16] rounded-[14px] flex items-center justify-center text-4xl">
                       {getAvatarDisplay(profile.anonymousAvatar)}
                     </div>
                   </div>
 
-                  <div className="space-y-1">
+                  <div className="space-y-1.5 min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-mono uppercase tracking-wider text-indigo-400">
                         Community Identity
                       </span>
-                      <span className="text-emerald-400 font-mono text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                      <span className="text-emerald-400 font-mono text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex-shrink-0">
                         ● Live
                       </span>
                     </div>
 
-                    <h2 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
+                    <h2 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight break-words" title={profile.anonymousName}>
                       {profile.anonymousName}
                     </h2>
 
-                    <div className="flex items-center gap-3 text-xs text-slate-300 font-mono">
-                      <span className="text-cyan-300 flex items-center gap-1">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs text-slate-300 font-mono">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 font-semibold flex-shrink-0">
                         <GraduationCap className="w-3.5 h-3.5" />
                         {profile.year}
                       </span>
-                      <span className="text-slate-600">•</span>
-                      <span className="text-slate-400">
+                      <span className="text-slate-600 hidden sm:inline">•</span>
+                      <span className="text-slate-400 truncate">
                         Prof. S.N. Bose Boys Hostel
                       </span>
                     </div>
                   </div>
                 </div>
 
-                <div className="sm:max-w-xs text-left sm:text-right space-y-1">
+                <div className="sm:max-w-xs text-left sm:text-right space-y-1 flex-shrink-0">
                   <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.04] border border-white/[0.08] text-[11px] text-slate-300 font-medium">
                     <Lock className="w-3 h-3 text-cyan-400" />
                     <span>Public Persona</span>

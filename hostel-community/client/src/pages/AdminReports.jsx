@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import adminService from '../services/adminService';
+import { getAvatarDisplay } from '../components/AvatarPicker';
 
 export const AdminReports = () => {
   const { user } = useAuth();
@@ -320,7 +321,7 @@ export const AdminReports = () => {
                     <div className="p-4 rounded-2xl bg-slate-900/90 border border-white/[0.05] space-y-2">
                       <div className="flex items-center justify-between text-xs text-slate-400">
                         <div className="flex items-center gap-2">
-                          <span>{report.message?.sender?.anonymousAvatar || '🎭'}</span>
+                          <span>{getAvatarDisplay(report.message?.sender?.anonymousAvatar)}</span>
                           <span className="font-semibold text-slate-200">
                             {report.message?.sender?.anonymousName || 'Anonymous Student'}
                           </span>
@@ -353,7 +354,7 @@ export const AdminReports = () => {
                       {/* Reported By Anonymous Persona */}
                       <div className="flex items-center gap-2 text-xs text-slate-400">
                         <span className="text-slate-500">Reported by:</span>
-                        <span>{report.reportedBy?.anonymousAvatar || '🎭'}</span>
+                        <span>{getAvatarDisplay(report.reportedBy?.anonymousAvatar)}</span>
                         <span className="font-medium text-slate-300">
                           {report.reportedBy?.anonymousName}
                         </span>

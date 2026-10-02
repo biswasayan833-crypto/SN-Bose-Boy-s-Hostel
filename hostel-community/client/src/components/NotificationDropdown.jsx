@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import notificationService from '../services/notificationService';
 import socketService from '../services/socketService';
+import { getAvatarDisplay } from './AvatarPicker';
 
 export const NotificationDropdown = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -312,7 +313,7 @@ export const NotificationDropdown = () => {
                     <div className="flex items-center gap-2 pt-1 text-[11px] text-slate-400">
                       {notif.actor && (
                         <span className="flex items-center gap-1 text-slate-300">
-                          <span>{notif.actor.anonymousAvatar || '🎭'}</span>
+                          <span>{getAvatarDisplay(notif.actor.anonymousAvatar)}</span>
                           <span className="font-medium text-slate-200">
                             {notif.actor.anonymousName}
                           </span>

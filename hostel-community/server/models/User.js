@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
+import { computeIdentityKey } from '../utils/identityHelper.js';
 
 export const ALLOWED_YEARS = ['2nd Year', '3rd Year', '4th Year'];
 
@@ -47,6 +48,11 @@ const userSchema = new mongoose.Schema(
       required: [true, 'Anonymous avatar is required'],
       trim: true,
     },
+    anonymousIdentityKey: {
+      type: String,
+      trim: true,
+      select: false, // Internal normalized key; never exposed through community APIs
+    },
     bio: {
       type: String,
       default: '',
@@ -68,8 +74,24 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-// Pre-save hook to hash password with bcryptjs
+// Enforce unique anonymous identity key among active students at the database level
+userSchema.index(
+  { anonymousIdentityKey: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { isActive: true },
+    name: 'unique_active_anonymous_identity',
+  }
+);
+
+// Pre-save hook to hash password and maintain normalized identity key
 userSchema.pre('save', async function (next) {
+  if (this.isModified('anonymousName') || this.isModified('anonymousAvatar') || !this.anonymousIdentityKey) {
+    if (this.anonymousName && this.anonymousAvatar) {
+      this.anonymousIdentityKey = computeIdentityKey(this.anonymousName, this.anonymousAvatar);
+    }
+  }
+
   if (!this.isModified('password')) {
     return next();
   }

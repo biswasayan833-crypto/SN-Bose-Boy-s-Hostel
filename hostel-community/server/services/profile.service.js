@@ -1,4 +1,5 @@
 import User from '../models/User.js';
+import { validateIdentityAvailability } from './identity.service.js';
 
 /**
  * Curated list of predefined anonymous avatars.
@@ -80,6 +81,9 @@ export const updateMyProfile = async (userId, payload = {}) => {
   }
 
   const { anonymousName, anonymousAvatar, bio } = payload;
+  let targetName = user.anonymousName;
+  let targetAvatar = user.anonymousAvatar;
+  let identityModified = false;
 
   // 1. Validate anonymousName if provided
   if (anonymousName !== undefined) {
@@ -118,20 +122,8 @@ export const updateMyProfile = async (userId, payload = {}) => {
       throw error;
     }
 
-    // Check uniqueness across other active residents
-    const existing = await User.findOne({
-      _id: { $ne: userId },
-      anonymousName: { $regex: new RegExp(`^${trimmedName}$`, 'i') },
-      isActive: true,
-    });
-
-    if (existing) {
-      const error = new Error('This anonymous name is already in use by another resident.');
-      error.statusCode = 409;
-      throw error;
-    }
-
-    user.anonymousName = trimmedName;
+    targetName = trimmedName;
+    identityModified = true;
   }
 
   // 2. Validate anonymousAvatar if provided
@@ -151,7 +143,15 @@ export const updateMyProfile = async (userId, payload = {}) => {
       throw error;
     }
 
-    user.anonymousAvatar = trimmedAvatar;
+    targetAvatar = trimmedAvatar;
+    identityModified = true;
+  }
+
+  // Check unique community identity (name + avatar combination) across active students
+  if (identityModified) {
+    await validateIdentityAvailability(targetName, targetAvatar, userId);
+    user.anonymousName = targetName;
+    user.anonymousAvatar = targetAvatar;
   }
 
   // 3. Validate bio if provided
@@ -178,8 +178,17 @@ export const updateMyProfile = async (userId, payload = {}) => {
     user.bio = trimmedBio;
   }
 
-  // Save changes (pre-save handles timestamps)
-  await user.save();
+  // Save changes (pre-save handles timestamps and anonymousIdentityKey normalization)
+  try {
+    await user.save();
+  } catch (err) {
+    if (err.code === 11000 || (err.name === 'MongoServerError' && err.code === 11000)) {
+      const error = new Error('This anonymous identity is already in use. Please choose another.');
+      error.statusCode = 409;
+      throw error;
+    }
+    throw err;
+  }
 
   return {
     profile: user.toPrivateProfileObject(),

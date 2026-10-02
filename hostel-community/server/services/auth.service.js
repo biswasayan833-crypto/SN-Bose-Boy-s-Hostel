@@ -1,6 +1,9 @@
 import jwt from 'jsonwebtoken';
 import User, { ALLOWED_YEARS } from '../models/User.js';
-import { generateUniqueAnonymousIdentity } from './identity.service.js';
+import {
+  generateUniqueAnonymousIdentity,
+  validateIdentityAvailability,
+} from './identity.service.js';
 
 /**
  * Generate a signed JSON Web Token
@@ -18,7 +21,14 @@ export const signJwtToken = (userId) => {
 /**
  * Register a new hostel student
  */
-export const registerStudent = async ({ fullName, email, password, year }) => {
+export const registerStudent = async ({
+  fullName,
+  email,
+  password,
+  year,
+  anonymousName: customName,
+  anonymousAvatar: customAvatar,
+}) => {
   // Input validations
   if (!fullName || typeof fullName !== 'string' || fullName.trim().length < 2) {
     const error = new Error('Full name is required and must be at least 2 characters long.');
@@ -63,8 +73,19 @@ export const registerStudent = async ({ fullName, email, password, year }) => {
     throw error;
   }
 
-  // Generate anonymous persona
-  const { anonymousName, anonymousAvatar } = await generateUniqueAnonymousIdentity();
+  // Determine or generate unique anonymous persona
+  let anonymousName;
+  let anonymousAvatar;
+
+  if (customName && customAvatar) {
+    await validateIdentityAvailability(customName, customAvatar);
+    anonymousName = customName.trim();
+    anonymousAvatar = customAvatar.trim();
+  } else {
+    const generated = await generateUniqueAnonymousIdentity();
+    anonymousName = generated.anonymousName;
+    anonymousAvatar = generated.anonymousAvatar;
+  }
 
   // Create user record
   const newUser = new User({
@@ -78,7 +99,21 @@ export const registerStudent = async ({ fullName, email, password, year }) => {
     isActive: true,
   });
 
-  await newUser.save();
+  try {
+    await newUser.save();
+  } catch (err) {
+    if (err.code === 11000 || (err.name === 'MongoServerError' && err.code === 11000)) {
+      if (err.keyPattern?.anonymousIdentityKey || err.message?.includes('anonymousIdentityKey')) {
+        const error = new Error('This anonymous identity is already in use. Please choose another.');
+        error.statusCode = 409;
+        throw error;
+      }
+      const error = new Error('An account with this email address already exists.');
+      error.statusCode = 409;
+      throw error;
+    }
+    throw err;
+  }
 
   // Sign JWT token
   const token = signJwtToken(newUser._id);

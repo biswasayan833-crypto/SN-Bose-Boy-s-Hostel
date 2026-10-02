@@ -16,6 +16,7 @@ import { useHealthCheck } from '../hooks/useHealthCheck';
 
 import { useAuth } from '../context/AuthContext';
 import NotificationDropdown from './NotificationDropdown';
+import { getAvatarDisplay } from './AvatarPicker';
 
 export const Navbar = () => {
   const [scrolled, setScrolled] = useState(false);
@@ -142,11 +143,11 @@ export const Navbar = () => {
 
                 <Link
                   to="/dashboard"
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-slate-900 border border-slate-700/80 hover:border-indigo-500/50 hover:bg-slate-800 transition-all shadow-md"
+                  className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-semibold text-white bg-slate-900 border border-slate-700/80 hover:border-indigo-500/50 hover:bg-slate-800 transition-all shadow-md max-w-[200px]"
                 >
-                  <span className="text-base">{user?.anonymousAvatar}</span>
-                  <span className="text-xs">{user?.anonymousName}</span>
-                  <LayoutDashboard className="w-4 h-4 text-indigo-400 ml-1" />
+                  <span className="text-base flex-shrink-0">{getAvatarDisplay(user?.anonymousAvatar)}</span>
+                  <span className="text-xs truncate">{user?.anonymousName}</span>
+                  <LayoutDashboard className="w-4 h-4 text-indigo-400 ml-1 flex-shrink-0" />
                 </Link>
 
                 <Link
@@ -280,7 +281,7 @@ export const Navbar = () => {
                     onClick={() => setMobileMenuOpen(false)}
                     className="w-full py-2.5 rounded-xl text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 transition-colors flex items-center justify-center gap-2"
                   >
-                    <span>Dashboard ({user?.anonymousName})</span>
+                    <span className="truncate px-2">Dashboard ({user?.anonymousName})</span>
                   </Link>
 
                   <Link

@@ -12,6 +12,23 @@ export const PREDEFINED_AVATARS = [
   { id: 'avatar-08', icon: '🐻', name: 'Bear', label: 'Avatar 8' },
 ];
 
+/**
+ * Returns the emoji icon for an avatar ID or returns the string if already an icon.
+ */
+export const getAvatarDisplay = (avatarKey) => {
+  if (!avatarKey) return '🎭';
+  const cleanKey = String(avatarKey).trim();
+  const match = PREDEFINED_AVATARS.find(
+    (a) => a.id.toLowerCase() === cleanKey.toLowerCase() || a.icon === cleanKey
+  );
+  if (match) return match.icon;
+  // Guard: Never display raw internal avatar IDs (e.g. 'avatar-01', 'avatar-02') as text
+  if (/^avatar[-\s_]?\d+/i.test(cleanKey)) {
+    return '🎭';
+  }
+  return cleanKey;
+};
+
 export const AvatarPicker = ({ selectedAvatar, onSelect }) => {
   return (
     <div className="space-y-3">
@@ -53,7 +70,7 @@ export const AvatarPicker = ({ selectedAvatar, onSelect }) => {
                 <div className="text-xs font-bold text-white truncate">
                   {avatar.name}
                 </div>
-                <div className="text-[10px] text-slate-400 font-mono">
+                <div className="text-[10px] text-slate-400 font-mono truncate">
                   {avatar.label}
                 </div>
               </div>

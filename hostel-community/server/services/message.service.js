@@ -2,6 +2,8 @@ import Message, { ALLOWED_REACTION_TYPES } from '../models/Message.js';
 import { getRoomById } from './room.service.js';
 import { createNotification } from './notification.service.js';
 import { getIO } from '../socket/chat.socket.js';
+import { saveAttachment } from './storage.service.js';
+import { validateUploadFile } from '../utils/fileValidator.js';
 
 export { ALLOWED_REACTION_TYPES };
 
@@ -36,6 +38,11 @@ export const formatSafeMessage = (msg) => {
     }
   }
 
+  const senderId = sender._id ? sender._id.toString() : (sender.id || (msg.sender?._id ? msg.sender._id.toString() : (msg.sender ? msg.sender.toString() : undefined)));
+  const senderName = msg.anonymousName || sender.anonymousName || 'Anonymous Student';
+  const senderAvatar = msg.anonymousAvatar || sender.anonymousAvatar || '🎭';
+  const senderYear = msg.senderYear || sender.year || 'Hostel Resident';
+
   return {
     id: msg._id.toString(),
     room: msg.room?._id ? msg.room._id.toString() : msg.room?.toString?.() || String(msg.room),
@@ -45,13 +52,22 @@ export const formatSafeMessage = (msg) => {
     isPinned: Boolean(msg.isPinned),
     pinnedAt: msg.pinnedAt || null,
     sender: {
-      id: sender._id ? sender._id.toString() : sender.id,
-      anonymousName: sender.anonymousName || 'Anonymous Student',
-      anonymousAvatar: sender.anonymousAvatar || '🎭',
-      year: sender.year || 'Hostel Resident',
+      id: senderId,
+      anonymousName: senderName,
+      anonymousAvatar: senderAvatar,
+      year: senderYear,
     },
     reactions: safeReactions,
     reactionCounts,
+    attachment:
+      !isDeleted && msg.attachment && (msg.attachment.url || msg.attachment.originalName)
+        ? {
+            originalName: msg.attachment.originalName,
+            mimeType: msg.attachment.mimeType,
+            size: msg.attachment.size,
+            url: msg.attachment.url || `/api/messages/${msg._id}/attachment`,
+          }
+        : null,
     createdAt: msg.createdAt,
     updatedAt: msg.updatedAt,
   };
@@ -120,8 +136,70 @@ export const createMessage = async ({ roomId, user, content }) => {
     room: room._id,
     sender: user._id,
     content: trimmedContent,
+    anonymousName: user.anonymousName,
+    anonymousAvatar: user.anonymousAvatar,
+    senderYear: user.year,
   });
 
+  await message.save();
+
+  // Populate sender with ONLY anonymous fields
+  await message.populate('sender', 'anonymousName anonymousAvatar year');
+
+  return formatSafeMessage(message);
+};
+
+/**
+ * Create a message with a file attachment in an authorized room.
+ */
+export const createMessageWithAttachment = async ({ roomId, user, content, file }) => {
+  // 1. Verify user authorization for the room
+  const room = await getRoomById(roomId, user);
+
+  // 2. Validate file presence and contents
+  if (!file) {
+    const error = new Error('No file attachment provided.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  // Validate file against size, extension, MIME type, and magic bytes
+  validateUploadFile(file);
+
+  // Validate optional content length
+  const trimmedContent = typeof content === 'string' ? content.trim() : '';
+  if (trimmedContent.length > 1000) {
+    const error = new Error('Message caption cannot exceed 1000 characters.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  // 3. Save file using isolated storage service
+  const savedFile = await saveAttachment({
+    buffer: file.buffer,
+    originalName: file.originalname,
+    mimeType: file.mimetype,
+  });
+
+  // 4. Create and save message
+  const message = new Message({
+    room: room._id,
+    sender: user._id,
+    content: trimmedContent,
+    anonymousName: user.anonymousName,
+    anonymousAvatar: user.anonymousAvatar,
+    senderYear: user.year,
+    attachment: {
+      originalName: savedFile.originalName,
+      storedName: savedFile.storedName,
+      mimeType: savedFile.mimeType,
+      size: savedFile.size,
+      url: '',
+    },
+  });
+
+  // Assign clean REST URL
+  message.attachment.url = `/api/messages/${message._id}/attachment`;
   await message.save();
 
   // Populate sender with ONLY anonymous fields

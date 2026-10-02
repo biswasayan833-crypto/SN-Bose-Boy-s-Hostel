@@ -18,10 +18,52 @@ const messageSchema = new mongoose.Schema(
     },
     content: {
       type: String,
-      required: [true, 'Message content cannot be empty'],
       trim: true,
-      minlength: [1, 'Message must contain at least 1 character'],
       maxlength: [1000, 'Message cannot exceed 1000 characters'],
+      validate: {
+        validator: function (value) {
+          // If message has an attachment, content can be empty or a caption
+          if (this.attachment && (this.attachment.storedName || this.attachment.originalName)) {
+            return true;
+          }
+          return typeof value === 'string' && value.trim().length >= 1;
+        },
+        message: 'Message content cannot be empty when no attachment is provided',
+      },
+    },
+    attachment: {
+      originalName: {
+        type: String,
+        trim: true,
+      },
+      storedName: {
+        type: String,
+        trim: true,
+      },
+      mimeType: {
+        type: String,
+        trim: true,
+      },
+      size: {
+        type: Number,
+      },
+      url: {
+        type: String,
+        trim: true,
+      },
+    },
+    // Historical persona snapshot at time of posting (preserves sender identity if user later updates profile)
+    anonymousName: {
+      type: String,
+      trim: true,
+    },
+    anonymousAvatar: {
+      type: String,
+      trim: true,
+    },
+    senderYear: {
+      type: String,
+      trim: true,
     },
     reactions: [
       {
@@ -72,6 +114,24 @@ const messageSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+// Pre-save hook: automatically snapshot sender persona if not explicitly set
+messageSchema.pre('save', async function (next) {
+  if ((!this.anonymousName || !this.anonymousAvatar || !this.senderYear) && this.sender) {
+    try {
+      const User = mongoose.model('User');
+      const senderUser = await User.findById(this.sender).select('anonymousName anonymousAvatar year');
+      if (senderUser) {
+        if (!this.anonymousName) this.anonymousName = senderUser.anonymousName;
+        if (!this.anonymousAvatar) this.anonymousAvatar = senderUser.anonymousAvatar;
+        if (!this.senderYear) this.senderYear = senderUser.year;
+      }
+    } catch (err) {
+      // Non-blocking fallback
+    }
+  }
+  next();
+});
 
 // Compound indexes for fast room message retrieval
 messageSchema.index({ room: 1, createdAt: 1 });
