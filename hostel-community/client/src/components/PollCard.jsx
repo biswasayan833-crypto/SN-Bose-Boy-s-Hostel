@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   BarChart2,
   CheckCircle2,
-  Clock,
   Globe,
   GraduationCap,
   Lock,
@@ -11,6 +10,8 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { votePoll, retractVote } from '../services/pollService';
+import { GlassCard } from './ui/GlassCard';
+import { Badge } from './ui/Badge';
 
 export const PollCard = ({
   poll,
@@ -79,32 +80,32 @@ export const PollCard = ({
   };
 
   return (
-    <div className="rounded-2xl bg-[#0b0f19]/90 border border-white/[0.08] hover:border-white/[0.15] p-5 sm:p-6 transition-all duration-300 shadow-md shadow-black/20 flex flex-col justify-between group">
+    <GlassCard variant="default" glow={!effectiveClosed} hoverLift={true} className="p-5 sm:p-6 transition-all duration-300 flex flex-col justify-between group">
       <div>
         {/* Header Badges */}
         <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+            <Badge variant="emerald" size="sm">
               <BarChart2 className="w-3 h-3" />
-              Community Poll
-            </span>
+              <span>Community Poll</span>
+            </Badge>
 
             {room && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-800/80 text-slate-300 border border-slate-700/50">
+              <Badge variant="neutral" size="sm">
                 {room.type === 'global' ? (
                   <Globe className="w-3 h-3 text-cyan-400" />
                 ) : (
                   <GraduationCap className="w-3 h-3 text-indigo-400" />
                 )}
-                {room.name}
-              </span>
+                <span>{room.name}</span>
+              </Badge>
             )}
 
             {effectiveClosed && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-slate-800 text-slate-400 border border-slate-700">
+              <Badge variant="neutral" size="sm">
                 <Lock className="w-3 h-3" />
-                Closed
-              </span>
+                <span>Closed</span>
+              </Badge>
             )}
           </div>
 
@@ -126,7 +127,7 @@ export const PollCard = ({
                   type="button"
                   onClick={() => onDelete(poll)}
                   title="Delete poll"
-                  className="p-1.5 rounded-lg bg-slate-800/60 border border-slate-700 text-slate-400 hover:text-rose-400 hover:bg-slate-700 text-xs transition-colors"
+                  className="p-1.5 rounded-lg bg-slate-800/60 border border-white/[0.08] text-slate-400 hover:text-rose-400 hover:bg-slate-700 text-xs transition-colors"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
@@ -198,7 +199,7 @@ export const PollCard = ({
                 key={opt.id}
                 className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
                   isSelected
-                    ? 'border-indigo-500 bg-indigo-600/10 text-white shadow-sm shadow-indigo-500/10'
+                    ? 'border-indigo-500 bg-indigo-600/10 text-white shadow-sm shadow-indigo-500/10 ring-1 ring-indigo-500'
                     : 'border-white/[0.06] bg-slate-900/40 text-slate-300 hover:border-white/[0.15] hover:bg-slate-800/40'
                 }`}
               >
@@ -235,7 +236,7 @@ export const PollCard = ({
               type="button"
               onClick={handleVote}
               disabled={!selectedOption || submitting}
-              className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-medium shadow-md shadow-indigo-600/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-xs"
+              className="btn-cinema-primary text-xs py-1.5 px-4 shadow-md"
             >
               {submitting ? 'Submitting...' : 'Vote'}
             </button>
@@ -267,7 +268,7 @@ export const PollCard = ({
           )}
         </div>
       </div>
-    </div>
+    </GlassCard>
   );
 };
 

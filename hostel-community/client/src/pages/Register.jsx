@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Shield, Lock, Mail, User, GraduationCap, Eye, EyeOff, AlertCircle, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Shield, Lock, Mail, User, GraduationCap, Eye, EyeOff, AlertCircle, ArrowRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { GlassCard } from '../components/ui/GlassCard';
+import { CinematicBackground } from '../components/ui/CinematicBackground';
 
 export const Register = () => {
   const navigate = useNavigate();
@@ -76,16 +78,13 @@ export const Register = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#07090e] text-slate-100 flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative overflow-hidden selection:bg-indigo-500/30 selection:text-indigo-200">
-      {/* Background ambient lighting */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[550px] h-[350px] bg-gradient-to-tr from-violet-600/15 via-indigo-600/10 to-cyan-500/10 blur-[130px] pointer-events-none rounded-full" />
-
-      <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10">
+    <CinematicBackground className="justify-center py-12 sm:px-6 lg:px-8 selection:bg-indigo-500/30 selection:text-indigo-200">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10 px-4 sm:px-0 my-auto">
         {/* Brand logo & title */}
-        <div className="text-center space-y-3">
-          <Link to="/" className="inline-flex items-center gap-2.5 group">
+        <div className="text-center space-y-3 animate-slide-down">
+          <Link to="/" className="inline-flex items-center gap-2.5 group focus-ring rounded-xl">
             <div className="flex items-center justify-center w-11 h-11 rounded-xl bg-gradient-to-br from-violet-600 via-indigo-600 to-cyan-500 p-[1px] shadow-lg shadow-indigo-600/25">
-              <div className="w-full h-full bg-[#0b0f19] rounded-[11px] flex items-center justify-center">
+              <div className="w-full h-full bg-[#080d19] rounded-[11px] flex items-center justify-center">
                 <Shield className="w-5 h-5 text-indigo-400 group-hover:scale-110 transition-transform" />
               </div>
             </div>
@@ -106,8 +105,8 @@ export const Register = () => {
         </div>
 
         {/* Card Form */}
-        <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-          <div className="bg-[#0c101d]/90 backdrop-blur-xl py-8 px-5 sm:px-10 border border-white/[0.08] rounded-3xl shadow-2xl space-y-6">
+        <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md animate-slide-up stagger-1">
+          <GlassCard variant="elevated" glow={true} className="py-7 px-4 sm:px-8 md:px-10 shadow-2xl space-y-6">
             
             {/* Error banner */}
             {errorMessage && (
@@ -128,8 +127,8 @@ export const Register = () => {
             <form onSubmit={handleSubmit} className="space-y-4">
               
               {/* Full Name */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-slate-300">
                   Full Name
                 </label>
                 <div className="relative">
@@ -143,14 +142,14 @@ export const Register = () => {
                     value={formData.fullName}
                     onChange={handleChange}
                     placeholder="e.g. Ayan Biswas"
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-900/80 border border-slate-700/80 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-sm text-white placeholder-slate-500 transition-colors"
+                    className="input-cinema pl-10"
                   />
                 </div>
               </div>
 
               {/* Email Address */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-slate-300">
                   Institutional / Student Email
                 </label>
                 <div className="relative">
@@ -164,14 +163,14 @@ export const Register = () => {
                     value={formData.email}
                     onChange={handleChange}
                     placeholder="student@college.edu"
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-900/80 border border-slate-700/80 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-sm text-white placeholder-slate-500 transition-colors"
+                    className="input-cinema pl-10"
                   />
                 </div>
               </div>
 
               {/* Year Dropdown (ONLY 2nd, 3rd, 4th Year - NO 1st Year) */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-slate-300">
                   Academic Year
                 </label>
                 <div className="relative">
@@ -183,7 +182,7 @@ export const Register = () => {
                     required
                     value={formData.year}
                     onChange={handleChange}
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-900/80 border border-slate-700/80 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-sm text-white transition-colors"
+                    className="input-cinema pl-10"
                   >
                     <option value="" disabled className="bg-slate-900 text-slate-500">
                       Select your hostel year
@@ -199,14 +198,14 @@ export const Register = () => {
                     </option>
                   </select>
                 </div>
-                <span className="text-[11px] text-slate-500 mt-1 block">
+                <span className="text-[11px] text-slate-500 block">
                   Prof. S.N. Bose Boys Hostel accommodates 2nd, 3rd, and 4th Year students.
                 </span>
               </div>
 
               {/* Password */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-slate-300">
                   Password
                 </label>
                 <div className="relative">
@@ -221,12 +220,13 @@ export const Register = () => {
                     value={formData.password}
                     onChange={handleChange}
                     placeholder="At least 6 characters"
-                    className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-slate-900/80 border border-slate-700/80 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-sm text-white placeholder-slate-500 transition-colors"
+                    className="input-cinema pl-10 pr-11"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-500 hover:text-slate-300"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    className="absolute inset-y-0 right-0 w-11 h-full flex items-center justify-center text-slate-500 hover:text-slate-300 cursor-pointer"
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -234,8 +234,8 @@ export const Register = () => {
               </div>
 
               {/* Confirm Password */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-slate-300">
                   Confirm Password
                 </label>
                 <div className="relative">
@@ -249,7 +249,7 @@ export const Register = () => {
                     value={formData.confirmPassword}
                     onChange={handleChange}
                     placeholder="Re-enter password"
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-900/80 border border-slate-700/80 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-sm text-white placeholder-slate-500 transition-colors"
+                    className="input-cinema pl-10"
                   />
                 </div>
               </div>
@@ -259,7 +259,7 @@ export const Register = () => {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-3.5 px-4 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-violet-600 via-indigo-600 to-cyan-600 hover:from-violet-500 hover:to-cyan-500 shadow-lg shadow-indigo-600/30 transition-all flex items-center justify-center gap-2 active:scale-[0.99] disabled:opacity-60"
+                  className="btn-cinema-primary w-full min-h-[46px] py-3 px-4 text-sm justify-center shadow-lg"
                 >
                   {loading ? (
                     <span className="flex items-center gap-2">
@@ -285,7 +285,7 @@ export const Register = () => {
               </Link>
             </div>
 
-          </div>
+          </GlassCard>
 
           {/* Return to Home link */}
           <div className="mt-6 text-center">
@@ -295,7 +295,7 @@ export const Register = () => {
           </div>
         </div>
       </div>
-    </div>
+    </CinematicBackground>
   );
 };
 

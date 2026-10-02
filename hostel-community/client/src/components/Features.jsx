@@ -1,5 +1,7 @@
 import React from 'react';
 import { EyeOff, Layers, Globe2, ShieldCheck, MessageSquareCode, Zap, Sparkles } from 'lucide-react';
+import { GlassCard } from './ui/GlassCard';
+import { Badge } from './ui/Badge';
 
 export const Features = () => {
   const features = [
@@ -14,7 +16,7 @@ export const Features = () => {
       icon: Layers,
       title: 'Year-Wise Dedicated Rooms',
       description:
-        'Separate partitioned spaces for 1st, 2nd, 3rd, and 4th years so discussions remain relevant to your academic and hostel phase.',
+        'Separate partitioned spaces for 2nd, 3rd, and 4th years so discussions remain relevant to your academic and hostel phase.',
       color: 'from-violet-500 to-indigo-500',
     },
     {
@@ -40,9 +42,9 @@ export const Features = () => {
     },
     {
       icon: Zap,
-      title: 'Future Real-Time Messaging',
+      title: 'Live Real-Time Messaging',
       description:
-        'Engineered from the ground up for lightning-speed Socket.IO live socket streams, real-time reactions, and instant notifications.',
+        'Engineered with lightning-fast Socket.IO live socket streams, real-time message reactions, unread counts, and instant notifications.',
       color: 'from-amber-500 to-orange-500',
     },
   ];
@@ -53,44 +55,47 @@ export const Features = () => {
         
         {/* Section Header */}
         <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs font-semibold uppercase tracking-wider">
-            <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+          <Badge variant="indigo" size="md">
+            <Sparkles className="w-3.5 h-3.5" />
             <span>Built For Hostel Life</span>
-          </div>
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white tracking-tight">
+          </Badge>
+          <h2 className="text-2xl sm:text-4xl lg:text-5xl font-extrabold text-white tracking-tight">
             Features Tailored For Student Harmony
           </h2>
-          <p className="text-base sm:text-lg text-slate-300">
+          <p className="text-sm sm:text-base md:text-lg text-slate-300">
             A thoughtful blend of privacy, peer connection, and hostel camaraderie crafted specifically for the residents of Prof. S.N. Bose Boys Hostel.
           </p>
         </div>
 
         {/* Features Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-8">
           {features.map((feature, idx) => {
             const Icon = feature.icon;
             return (
-              <div
+              <GlassCard
                 key={idx}
-                className="group relative rounded-2xl bg-slate-900/40 hover:bg-slate-900/70 border border-white/[0.07] hover:border-indigo-500/40 p-7 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-indigo-950/40"
+                variant="interactive"
+                glow={true}
+                hoverLift={true}
+                className="group p-5 sm:p-7 transition-all duration-300"
               >
                 {/* Icon */}
                 <div
-                  className={`w-12 h-12 rounded-xl bg-gradient-to-br ${feature.color} p-[1px] mb-5 flex items-center justify-center`}
+                  className={`w-12 h-12 rounded-xl bg-gradient-to-br ${feature.color} p-[1px] mb-5 flex items-center justify-center shadow-md`}
                 >
-                  <div className="w-full h-full bg-[#0a0f1d] rounded-[11px] flex items-center justify-center">
+                  <div className="w-full h-full bg-[#080d19] rounded-[11px] flex items-center justify-center">
                     <Icon className="w-6 h-6 text-white group-hover:scale-110 transition-transform duration-300" />
                   </div>
                 </div>
 
                 {/* Content */}
-                <h3 className="text-lg font-bold text-white group-hover:text-indigo-300 transition-colors mb-2.5">
+                <h3 className="text-base sm:text-lg font-bold text-white group-hover:text-indigo-300 transition-colors mb-2.5">
                   {feature.title}
                 </h3>
-                <p className="text-sm text-slate-300 leading-relaxed">
+                <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
                   {feature.description}
                 </p>
-              </div>
+              </GlassCard>
             );
           })}
         </div>

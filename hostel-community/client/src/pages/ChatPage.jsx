@@ -30,6 +30,9 @@ import messageService from '../services/messageService';
 import MessageBubble from '../components/MessageBubble';
 import { getAvatarDisplay } from '../components/AvatarPicker';
 import NotificationDropdown from '../components/NotificationDropdown';
+import { GlassCard } from '../components/ui/GlassCard';
+import { Badge } from '../components/ui/Badge';
+import { CinematicBackground } from '../components/ui/CinematicBackground';
 
 export const ChatPage = () => {
   const { slug } = useParams();
@@ -102,100 +105,98 @@ export const ChatPage = () => {
     };
   }, [slug]);
 
-  // 2. Connect Socket.IO and subscribe to room events
+  // Clean up object URL on change or unmount
+  useEffect(() => {
+    return () => {
+      if (filePreviewUrl) {
+        URL.revokeObjectURL(filePreviewUrl);
+      }
+    };
+  }, [filePreviewUrl]);
+
+  // 2. Setup Socket.IO connection and room listeners
   useEffect(() => {
     if (!room) return;
 
-    // Connect socket
     socketService.connect();
+    socketService.joinRoom(room._id);
 
-    // Track connection state
     const unsubscribeStatus = socketService.onStatusChange((status) => {
       setSocketStatus(status);
     });
 
-    // Join room
-    socketService.joinRoom(room._id, (response) => {
-      if (response && !response.success) {
-        setError(response.message || 'Could not join room channel.');
-      }
-    });
-
-    // Listen for incoming messages
     const unsubscribeNewMessage = socketService.onNewMessage((newMsg) => {
-      if (newMsg && newMsg.room === room._id) {
-        // Suppress unread badge for actively viewed room
-        socketService.markRoomRead(room._id);
-
+      if (newMsg.room === room._id || newMsg.room?._id === room._id) {
         setMessages((prev) => {
-          // Prevent duplicates
-          if (prev.some((m) => m.id === newMsg.id)) return prev;
+          if (prev.some((m) => m.id === newMsg.id || m._id === newMsg.id)) {
+            return prev;
+          }
           return [...prev, newMsg];
         });
+        markRoomAsRead(room._id).catch(() => {});
+        socketService.markRoomRead(room._id);
       }
     });
 
-    // Listen for real-time reaction updates
     const unsubscribeReactionUpdated = socketService.onReactionUpdated((payload) => {
-      if (payload && payload.roomId === room._id) {
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === payload.messageId
-              ? {
-                  ...m,
-                  reactions: payload.reactions || [],
-                  reactionCounts: payload.reactionCounts || m.reactionCounts,
-                }
-              : m
-          )
-        );
-      }
+      const { messageId, reactions } = payload;
+      setMessages((prev) =>
+        prev.map((m) => {
+          if (m.id === messageId || m._id === messageId) {
+            return { ...m, reactions };
+          }
+          return m;
+        })
+      );
     });
 
-    // Listen for real-time message deletion updates
     const unsubscribeMessageDeleted = socketService.onMessageDeleted((payload) => {
-      if (payload && payload.roomId === room._id) {
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === payload.messageId
-              ? {
-                  ...m,
-                  isDeleted: true,
-                  content: 'Message deleted',
-                  deletedAt: payload.deletedAt,
-                  reactions: [],
-                  reactionCounts: { like: 0, love: 0, laugh: 0, fire: 0, clap: 0 },
-                }
-              : m
-          )
-        );
+      const { messageId } = payload;
+      setMessages((prev) =>
+        prev.map((m) => {
+          if (m.id === messageId || m._id === messageId) {
+            return {
+              ...m,
+              isDeleted: true,
+              content: 'This message was deleted by its author.',
+              attachment: null,
+              reactions: [],
+            };
+          }
+          return m;
+        })
+      );
+      setPinnedMessages((prev) => prev.filter((p) => p.id !== messageId));
+    });
+
+    const unsubscribeMessagePinned = socketService.onMessagePinned((payload) => {
+      const { messageId, isPinned, message: pinnedObj } = payload;
+      setMessages((prev) =>
+        prev.map((m) => {
+          if (m.id === messageId || m._id === messageId) {
+            return { ...m, isPinned };
+          }
+          return m;
+        })
+      );
+      if (isPinned && pinnedObj) {
+        setPinnedMessages((prev) => [pinnedObj, ...prev.filter((p) => p.id !== messageId)]);
       }
     });
 
-    // Listen for real-time pinned message updates
-    const unsubscribeMessagePinned = socketService.onMessagePinned((pinnedMsg) => {
-      if (pinnedMsg && pinnedMsg.room === room._id) {
-        setPinnedMessages((prev) => {
-          const exists = prev.some((m) => m.id === pinnedMsg.id);
-          if (exists) return prev.map((m) => (m.id === pinnedMsg.id ? pinnedMsg : m));
-          return [pinnedMsg, ...prev];
-        });
-        setMessages((prev) =>
-          prev.map((m) => (m.id === pinnedMsg.id ? { ...m, isPinned: true } : m))
-        );
-      }
+    const unsubscribeMessageUnpinned = socketService.onMessageUnpinned((payload) => {
+      const { messageId } = payload;
+      setMessages((prev) =>
+        prev.map((m) => {
+          if (m.id === messageId || m._id === messageId) {
+            return { ...m, isPinned: false };
+          }
+          return m;
+        })
+      );
+      setPinnedMessages((prev) => prev.filter((p) => p.id !== messageId));
     });
 
-    const unsubscribeMessageUnpinned = socketService.onMessageUnpinned(({ messageId, roomId }) => {
-      if (roomId === room._id) {
-        setPinnedMessages((prev) => prev.filter((m) => m.id !== messageId));
-        setMessages((prev) =>
-          prev.map((m) => (m.id === messageId ? { ...m, isPinned: false } : m))
-        );
-      }
-    });
-
-    // Listen for room errors
     const unsubscribeRoomError = socketService.onRoomError((errPayload) => {
       setError(errPayload?.message || 'A real-time room error occurred.');
     });
@@ -350,15 +351,12 @@ export const ChatPage = () => {
             const newReactions = (m.reactions || []).filter(
               (r) => !(r.user === currentUserId && r.type === type)
             );
-            const newCounts = { ...m.reactionCounts };
-            if (newCounts[type] && newCounts[type] > 0) newCounts[type] -= 1;
-            return { ...m, reactions: newReactions, reactionCounts: newCounts };
+            return { ...m, reactions: newReactions };
           })
         );
-
         socketService.removeReaction(messageId, type, (ack) => {
-          if (ack && !ack.success) {
-            messageService.removeReaction(messageId, type).catch(console.error);
+          if (!ack || !ack.success) {
+            messageService.removeReaction(messageId, type).catch(() => {});
           }
         });
       } else {
@@ -366,101 +364,75 @@ export const ChatPage = () => {
         setMessages((prev) =>
           prev.map((m) => {
             if (m.id !== messageId) return m;
-            const newReactions = [...(m.reactions || []), { user: currentUserId, type }];
-            const newCounts = {
-              ...m.reactionCounts,
-              [type]: (m.reactionCounts?.[type] || 0) + 1,
+            const existing = (m.reactions || []).filter(
+              (r) => !(r.user === currentUserId && r.type === type)
+            );
+            return {
+              ...m,
+              reactions: [...existing, { user: currentUserId, type }],
             };
-            return { ...m, reactions: newReactions, reactionCounts: newCounts };
           })
         );
-
         socketService.addReaction(messageId, type, (ack) => {
-          if (ack && !ack.success) {
-            messageService.addReaction(messageId, type).catch(console.error);
+          if (!ack || !ack.success) {
+            messageService.addReaction(messageId, type).catch(() => {});
           }
         });
       }
     } catch (err) {
-      console.error('[Reactions] Toggle error:', err);
+      setError(err.message || 'Failed to update reaction.');
     }
   };
 
-  // Handle message deletion
+  // Handle soft deletion (Socket with REST fallback)
   const handleDeleteMessage = async (messageId) => {
-    return new Promise((resolve, reject) => {
-      socketService.deleteMessage(messageId, async (ack) => {
-        if (ack && ack.success) {
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === messageId
-                ? {
-                    ...m,
-                    isDeleted: true,
-                    content: 'Message deleted',
-                    deletedAt: ack.deletedAt,
-                    reactions: [],
-                    reactionCounts: { like: 0, love: 0, laugh: 0, fire: 0, clap: 0 },
-                  }
-                : m
-            )
-          );
-          resolve(ack);
-        } else {
-          // Fallback to REST API
-          try {
-            const res = await messageService.deleteMessage(messageId);
-            setMessages((prev) =>
-              prev.map((m) => (m.id === messageId ? res.data.message : m))
-            );
-            resolve(res);
-          } catch (restErr) {
-            reject(restErr);
+    try {
+      // Optimistic UI update
+      setMessages((prev) =>
+        prev.map((m) => {
+          if (m.id === messageId) {
+            return {
+              ...m,
+              isDeleted: true,
+              content: 'This message was deleted by its author.',
+              attachment: null,
+              reactions: [],
+            };
           }
+          return m;
+        })
+      );
+      setPinnedMessages((prev) => prev.filter((p) => p.id !== messageId));
+
+      socketService.deleteMessage(messageId, (ack) => {
+        if (!ack || !ack.success) {
+          messageService.deleteMessage(messageId).catch(() => {});
         }
       });
-    });
+    } catch (err) {
+      setError(err.message || 'Failed to delete message.');
+    }
   };
 
-  // Handle reporting message
-  const handleReportMessage = async (messageId, { reason, notes }) => {
-    return await messageService.reportMessage(messageId, { reason, notes });
+  // Handle report submission
+  const handleReportMessage = async ({ messageId, reason, notes }) => {
+    try {
+      await messageService.reportMessage(messageId, { reason, notes });
+    } catch (err) {
+      throw new Error(err.message || 'Failed to submit message report.');
+    }
   };
 
   // Handle pin / unpin message (Admin only)
-  const handleTogglePin = async (messageId, shouldPin) => {
+  const handleTogglePin = async (messageId, pinStatus) => {
     try {
-      if (shouldPin) {
-        socketService.pinMessage(messageId, async (ack) => {
-          if (!ack || !ack.success) {
-            try {
-              await pinMessage(messageId);
-            } catch (restErr) {
-              setError(restErr.message || 'Failed to pin message.');
-            }
-          }
-        });
+      if (pinStatus) {
+        await pinMessage(room._id, messageId);
       } else {
-        socketService.unpinMessage(messageId, async (ack) => {
-          if (!ack || !ack.success) {
-            try {
-              await unpinMessage(messageId);
-            } catch (restErr) {
-              setError(restErr.message || 'Failed to unpin message.');
-            }
-          }
-        });
+        await unpinMessage(room._id, messageId);
       }
     } catch (err) {
-      setError(err.message || 'Failed to update message pin state.');
-    }
-  };
-
-  // Handle Enter / Shift + Enter
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
+      setError(err.message || 'Failed to update pinned state.');
     }
   };
 
@@ -471,32 +443,40 @@ export const ChatPage = () => {
     e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
   };
 
+  // Send on Enter (without Shift)
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
   const isGlobal = room?.type === 'global';
 
   return (
-    <div className="min-h-screen bg-[#07090e] text-slate-100 flex flex-col selection:bg-indigo-500/30 selection:text-indigo-200">
+    <CinematicBackground className="selection:bg-indigo-500/30 selection:text-indigo-200">
       
-      {/* Chat Navigation Header */}
-      <header className="sticky top-0 z-40 bg-[#080b12]/95 backdrop-blur-md border-b border-white/[0.08] shadow-md shadow-black/20">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+      {/* Top Channel Header Bar */}
+      <header className="sticky top-0 z-40 glass-panel-deep border-b border-white/[0.08] shadow-2xl shadow-black/50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between h-16 gap-3">
           
-          {/* Left: Return & Room Info */}
+          {/* Left: Back button & Room Details */}
           <div className="flex items-center gap-3 min-w-0">
             <Link
               to="/dashboard"
-              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors flex-shrink-0"
+              className="p-2 rounded-xl bg-slate-900/90 border border-white/[0.08] text-slate-400 hover:text-white hover:border-indigo-500/50 transition-colors flex-shrink-0"
               title="Return to Dashboard"
             >
-              <ArrowLeft className="w-5 h-5" />
+              <ArrowLeft className="w-4 h-4" />
             </Link>
 
             <div className="flex items-center gap-2.5 min-w-0">
               <div
                 className={`w-9 h-9 rounded-xl bg-gradient-to-br ${
                   isGlobal ? 'from-blue-600 to-cyan-600' : 'from-violet-600 to-indigo-600'
-                } p-[1px] flex items-center justify-center flex-shrink-0`}
+                } p-[1px] flex items-center justify-center flex-shrink-0 shadow-md`}
               >
-                <div className="w-full h-full bg-[#0a0f1d] rounded-[11px] flex items-center justify-center">
+                <div className="w-full h-full bg-[#080d19] rounded-[11px] flex items-center justify-center">
                   {isGlobal ? (
                     <Globe className="w-4 h-4 text-cyan-400" />
                   ) : (
@@ -510,15 +490,9 @@ export const ChatPage = () => {
                   <h1 className="text-sm sm:text-base font-bold text-white truncate">
                     {room?.name || 'Loading Channel...'}
                   </h1>
-                  <span
-                    className={`hidden sm:inline-block text-[10px] font-mono px-2 py-0.5 rounded-full border ${
-                      isGlobal
-                        ? 'bg-cyan-500/10 text-cyan-300 border-cyan-500/20'
-                        : 'bg-indigo-500/10 text-indigo-300 border-indigo-500/20'
-                    }`}
-                  >
+                  <Badge variant={isGlobal ? 'cyan' : 'indigo'} size="sm" className="hidden sm:inline-flex">
                     {isGlobal ? 'Global' : room?.allowedYear}
-                  </span>
+                  </Badge>
                 </div>
                 <p className="text-[11px] text-slate-400 truncate hidden sm:block">
                   {room?.description || 'Prof. S.N. Bose Boys Hostel Community'}
@@ -528,7 +502,7 @@ export const ChatPage = () => {
           </div>
 
           {/* Right: Socket Connection Pill & Notifications & User Persona */}
-          <div className="flex items-center gap-3 flex-shrink-0">
+          <div className="flex items-center gap-2.5 flex-shrink-0">
             {/* Notification Bell Dropdown */}
             <NotificationDropdown />
 
@@ -536,7 +510,7 @@ export const ChatPage = () => {
             {room && (
               <Link
                 to={`/search?roomId=${room._id}`}
-                className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white hover:border-indigo-500/40 transition-colors"
+                className="p-2 rounded-xl bg-slate-900/90 border border-white/[0.08] text-slate-400 hover:text-white hover:border-indigo-500/40 transition-colors"
                 title={`Search messages in ${room.name}`}
               >
                 <Search className="w-4 h-4" />
@@ -544,30 +518,23 @@ export const ChatPage = () => {
             )}
 
             {/* Socket Status Pill */}
-            <div
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono border transition-colors ${
+            <Badge
+              variant={
                 socketStatus === 'connected'
-                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                  ? 'emerald'
                   : socketStatus === 'connecting'
-                  ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
-                  : 'bg-rose-500/10 border-rose-500/30 text-rose-400'
-              }`}
+                  ? 'amber'
+                  : 'rose'
+              }
+              size="sm"
+              dot={true}
             >
-              <span
-                className={`w-1.5 h-1.5 rounded-full ${
-                  socketStatus === 'connected'
-                    ? 'bg-emerald-400 animate-pulse'
-                    : socketStatus === 'connecting'
-                    ? 'bg-amber-400 animate-ping'
-                    : 'bg-rose-400'
-                }`}
-              />
               <span className="capitalize">{socketStatus}</span>
-            </div>
+            </Badge>
 
             {/* User Anonymous Pill */}
-            <div className="hidden md:flex items-center gap-2 bg-slate-900/90 border border-slate-800 px-3 py-1 rounded-xl text-xs font-semibold max-w-[240px]">
-              <span className="text-base flex-shrink-0">{getAvatarDisplay(user?.anonymousAvatar)}</span>
+            <div className="hidden md:flex items-center gap-2 bg-slate-900/90 border border-white/[0.08] px-3 py-1 rounded-xl text-xs font-semibold max-w-[240px]">
+              <span className="text-sm flex-shrink-0">{getAvatarDisplay(user?.anonymousAvatar)}</span>
               <span className="text-slate-200 truncate">{user?.anonymousName}</span>
               <span className="text-[10px] font-mono text-cyan-300 flex-shrink-0">({user?.year})</span>
             </div>
@@ -596,7 +563,7 @@ export const ChatPage = () => {
         )}
 
         {/* Messages Stream Card */}
-        <div className="flex-1 bg-[#0b0f19]/80 backdrop-blur-xl border border-white/[0.08] rounded-3xl p-4 sm:p-6 flex flex-col justify-between overflow-hidden shadow-2xl relative min-h-[480px]">
+        <GlassCard variant="elevated" glow={true} className="flex-1 p-3.5 sm:p-6 flex flex-col justify-between overflow-hidden shadow-2xl relative min-h-[420px]">
           
           {/* Pinned Messages Tray */}
           {pinnedMessages.length > 0 && (
@@ -630,7 +597,7 @@ export const ChatPage = () => {
                     className="flex items-center justify-between gap-3 text-xs bg-slate-900/80 border border-white/[0.06] rounded-xl px-3 py-2"
                   >
                     <div className="flex items-center gap-2 min-w-0 overflow-hidden">
-                      <span className="text-base flex-shrink-0">
+                      <span className="text-sm flex-shrink-0">
                         {getAvatarDisplay(pMsg.sender?.anonymousAvatar)}
                       </span>
                       <span className="font-semibold text-indigo-300 flex-shrink-0">
@@ -646,7 +613,7 @@ export const ChatPage = () => {
                         type="button"
                         onClick={() => handleTogglePin(pMsg.id, false)}
                         title="Unpin message"
-                        className="text-[10px] text-slate-400 hover:text-rose-300 font-medium px-2 py-0.5 rounded bg-slate-800 border border-slate-700 hover:bg-slate-700 transition-colors flex-shrink-0"
+                        className="text-[10px] text-slate-400 hover:text-rose-300 font-medium px-2 py-0.5 rounded bg-slate-800 border border-white/[0.06] hover:bg-slate-700 transition-colors flex-shrink-0"
                       >
                         Unpin
                       </button>
@@ -680,10 +647,10 @@ export const ChatPage = () => {
                     Be the first one to start the conversation in {room?.name}.
                   </p>
                 </div>
-                <div className="inline-flex items-center gap-1.5 text-[11px] text-cyan-300 bg-cyan-500/10 border border-cyan-500/20 px-3 py-1 rounded-full font-mono">
+                <Badge variant="cyan" size="sm">
                   <Shield className="w-3.5 h-3.5" />
                   <span>Your real name is not displayed to other students</span>
-                </div>
+                </Badge>
               </div>
             )}
 
@@ -695,7 +662,7 @@ export const ChatPage = () => {
                   id={`msg-${msg.id}`}
                   className={`transition-all duration-700 rounded-3xl ${
                     highlightedMessageId === msg.id
-                      ? 'ring-2 ring-indigo-500 bg-indigo-500/10 p-1 shadow-lg shadow-indigo-500/30'
+                      ? 'ring-2 ring-indigo-500 bg-indigo-500/10 p-1 shadow-lg shadow-indigo-500/30 animate-highlight-flash'
                       : ''
                   }`}
                 >
@@ -770,13 +737,13 @@ export const ChatPage = () => {
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={loading || sending || !room}
-                className="h-[46px] w-[46px] rounded-2xl bg-slate-900/90 border border-slate-700/80 hover:border-indigo-500/60 hover:bg-slate-800 text-slate-300 hover:text-white flex items-center justify-center shadow-md transition-all disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0 active:scale-95"
+                className="h-[44px] w-[44px] sm:h-[46px] sm:w-[46px] rounded-2xl bg-slate-900/90 border border-white/[0.1] hover:border-indigo-500/60 hover:bg-slate-800 text-slate-300 hover:text-white flex items-center justify-center shadow-md transition-all disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0 active:scale-95 cursor-pointer"
                 title="Attach image or PDF (Max 5 MB)"
               >
                 <Paperclip className="w-4 h-4" />
               </button>
 
-              <div className="relative flex-1">
+              <div className="relative flex-1 min-w-0">
                 <textarea
                   ref={textareaRef}
                   rows={1}
@@ -790,10 +757,10 @@ export const ChatPage = () => {
                   }
                   maxLength={1000}
                   disabled={loading || !room || sending}
-                  className="w-full pl-4 pr-12 py-3 rounded-2xl bg-slate-900/90 border border-slate-700/80 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-sm text-white placeholder-slate-500 resize-none transition-colors max-h-32 disabled:opacity-50"
+                  className="input-cinema resize-none py-2.5 sm:py-3 pl-3.5 sm:pl-4 pr-11 sm:pr-12 text-xs sm:text-sm max-h-32 disabled:opacity-50"
                 />
 
-                <span className="absolute bottom-2 right-3 text-[10px] text-slate-500 font-mono">
+                <span className="absolute bottom-2 sm:bottom-2.5 right-2 sm:right-3 text-[9px] sm:text-[10px] text-slate-500 font-mono">
                   {inputContent.length}/1000
                 </span>
               </div>
@@ -801,7 +768,7 @@ export const ChatPage = () => {
               <button
                 type="submit"
                 disabled={(!inputContent.trim() && !selectedFile) || sending || loading || !room}
-                className="h-[46px] w-[46px] rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white flex items-center justify-center shadow-lg shadow-indigo-600/30 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0 active:scale-95"
+                className="btn-cinema-primary h-[44px] w-[44px] sm:h-[46px] sm:w-[46px] p-0 flex-shrink-0 cursor-pointer"
                 title="Send Message"
               >
                 {sending ? (
@@ -823,11 +790,11 @@ export const ChatPage = () => {
 
           </div>
 
-        </div>
+        </GlassCard>
 
       </div>
 
-    </div>
+    </CinematicBackground>
   );
 };
 

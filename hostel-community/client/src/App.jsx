@@ -15,7 +15,7 @@ import AdminReports from './pages/AdminReports';
 import AdminAnnouncements from './pages/AdminAnnouncements';
 import SearchPage from './pages/SearchPage';
 import NotFound from './pages/NotFound';
-
+import { PageTransition } from './components/ui';
 
 export const App = () => {
   return (
@@ -28,7 +28,9 @@ export const App = () => {
               path="/"
               element={
                 <MainLayout>
-                  <LandingPage />
+                  <PageTransition>
+                    <LandingPage />
+                  </PageTransition>
                 </MainLayout>
               }
             />
@@ -38,7 +40,9 @@ export const App = () => {
               path="/login"
               element={
                 <PublicRoute>
-                  <Login />
+                  <PageTransition>
+                    <Login />
+                  </PageTransition>
                 </PublicRoute>
               }
             />
@@ -46,7 +50,9 @@ export const App = () => {
               path="/register"
               element={
                 <PublicRoute>
-                  <Register />
+                  <PageTransition>
+                    <Register />
+                  </PageTransition>
                 </PublicRoute>
               }
             />
@@ -56,7 +62,9 @@ export const App = () => {
               path="/dashboard"
               element={
                 <ProtectedRoute>
-                  <Dashboard />
+                  <PageTransition>
+                    <Dashboard />
+                  </PageTransition>
                 </ProtectedRoute>
               }
             />
@@ -66,7 +74,9 @@ export const App = () => {
               path="/profile"
               element={
                 <ProtectedRoute>
-                  <ProfilePage />
+                  <PageTransition>
+                    <ProfilePage />
+                  </PageTransition>
                 </ProtectedRoute>
               }
             />
@@ -76,7 +86,9 @@ export const App = () => {
               path="/community/:slug"
               element={
                 <ProtectedRoute>
-                  <ChatPage />
+                  <PageTransition>
+                    <ChatPage />
+                  </PageTransition>
                 </ProtectedRoute>
               }
             />
@@ -86,7 +98,9 @@ export const App = () => {
               path="/search"
               element={
                 <ProtectedRoute>
-                  <SearchPage />
+                  <PageTransition>
+                    <SearchPage />
+                  </PageTransition>
                 </ProtectedRoute>
               }
             />
@@ -96,7 +110,9 @@ export const App = () => {
               path="/admin/reports"
               element={
                 <ProtectedRoute>
-                  <AdminReports />
+                  <PageTransition>
+                    <AdminReports />
+                  </PageTransition>
                 </ProtectedRoute>
               }
             />
@@ -106,13 +122,22 @@ export const App = () => {
               path="/admin/announcements"
               element={
                 <ProtectedRoute>
-                  <AdminAnnouncements />
+                  <PageTransition>
+                    <AdminAnnouncements />
+                  </PageTransition>
                 </ProtectedRoute>
               }
             />
 
             {/* 404 Fallback */}
-            <Route path="*" element={<NotFound />} />
+            <Route
+              path="*"
+              element={
+                <PageTransition>
+                  <NotFound />
+                </PageTransition>
+              }
+            />
 
           </Routes>
         </Router>

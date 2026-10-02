@@ -3,6 +3,7 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import HowItWorksModal from '../components/HowItWorksModal';
 import JoinModal from '../components/JoinModal';
+import { CinematicBackground } from '../components/ui/CinematicBackground';
 
 export const MainLayout = ({ children }) => {
   const [isJoinOpen, setIsJoinOpen] = useState(false);
@@ -20,13 +21,13 @@ export const MainLayout = ({ children }) => {
   };
 
   return (
-    <div className="min-h-screen bg-[#07090e] text-slate-100 flex flex-col selection:bg-indigo-500/30 selection:text-indigo-200">
+    <CinematicBackground className="selection:bg-indigo-500/30 selection:text-indigo-200">
       <Navbar
         onOpenJoin={() => handleOpenJoin(null)}
         onOpenHowItWorks={() => setIsHowItWorksOpen(true)}
       />
 
-      {/* Render children or outlet with injected handlers */}
+      {/* Render children with injected handlers */}
       <main className="flex-grow">
         {React.cloneElement(children, {
           onOpenEnter: () => handleOpenJoin(null),
@@ -52,7 +53,7 @@ export const MainLayout = ({ children }) => {
         onClose={handleCloseJoin}
         selectedRoom={selectedRoom}
       />
-    </div>
+    </CinematicBackground>
   );
 };
 

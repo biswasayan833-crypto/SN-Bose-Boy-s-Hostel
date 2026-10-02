@@ -41,7 +41,7 @@ export const AvatarPicker = ({ selectedAvatar, onSelect }) => {
         </span>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
         {PREDEFINED_AVATARS.map((avatar) => {
           const isSelected = selectedAvatar === avatar.id || selectedAvatar === avatar.icon;
 
@@ -50,16 +50,16 @@ export const AvatarPicker = ({ selectedAvatar, onSelect }) => {
               type="button"
               key={avatar.id}
               onClick={() => onSelect(avatar.id)}
-              className={`relative flex items-center gap-3 p-3 rounded-2xl border transition-all duration-200 text-left group ${
+              className={`relative flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-2xl border transition-all duration-200 text-left group cursor-pointer min-h-[48px] ${
                 isSelected
-                  ? 'bg-indigo-600/15 border-indigo-500/80 shadow-lg shadow-indigo-600/20 ring-1 ring-indigo-500'
-                  : 'bg-slate-900/60 border-white/[0.08] hover:border-slate-600 hover:bg-slate-900/90'
+                  ? 'bg-indigo-600/20 border-indigo-500 shadow-lg shadow-indigo-600/25 ring-1 ring-indigo-500/80 scale-[1.02]'
+                  : 'bg-white/[0.03] border-white/[0.08] hover:border-white/[0.2] hover:bg-white/[0.06]'
               }`}
             >
               <div
-                className={`w-11 h-11 rounded-xl flex items-center justify-center text-2xl flex-shrink-0 transition-transform group-hover:scale-110 ${
+                className={`w-9 h-9 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center text-xl sm:text-2xl flex-shrink-0 transition-transform group-hover:scale-110 ${
                   isSelected
-                    ? 'bg-indigo-600/30 border border-indigo-500/50'
+                    ? 'bg-indigo-500/25 border border-indigo-400/50 shadow-inner'
                     : 'bg-white/[0.04] border border-white/[0.06]'
                 }`}
               >
@@ -67,7 +67,7 @@ export const AvatarPicker = ({ selectedAvatar, onSelect }) => {
               </div>
 
               <div className="min-w-0 flex-1">
-                <div className="text-xs font-bold text-white truncate">
+                <div className="text-xs font-bold text-white tracking-tight truncate">
                   {avatar.name}
                 </div>
                 <div className="text-[10px] text-slate-400 font-mono truncate">
@@ -76,7 +76,7 @@ export const AvatarPicker = ({ selectedAvatar, onSelect }) => {
               </div>
 
               {isSelected && (
-                <div className="w-5 h-5 rounded-full bg-indigo-500 flex items-center justify-center text-white flex-shrink-0">
+                <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-indigo-600 to-cyan-500 flex items-center justify-center text-white flex-shrink-0 shadow-sm shadow-indigo-500/50">
                   <Check className="w-3 h-3 stroke-[3]" />
                 </div>
               )}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import {
   Search,
@@ -12,12 +12,16 @@ import {
   ChevronRight,
   ChevronLeft,
   Paperclip,
+  ArrowLeft,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { searchContent } from '../services/searchService';
 import { getRooms } from '../services/roomService';
 import { getAvatarDisplay } from '../components/AvatarPicker';
 import NotificationDropdown from '../components/NotificationDropdown';
+import { GlassCard } from '../components/ui/GlassCard';
+import { Badge } from '../components/ui/Badge';
+import { CinematicBackground } from '../components/ui/CinematicBackground';
 
 const SEARCH_TABS = [
   { id: 'all', label: 'All', icon: Sparkles },
@@ -41,19 +45,15 @@ export const SearchPage = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const initialQuery = searchParams.get('q') || '';
-  const initialType = searchParams.get('type') || 'all';
-  const initialRoomId = searchParams.get('roomId') || '';
-
-  const [query, setQuery] = useState(initialQuery);
-  const [activeTab, setActiveTab] = useState(initialType);
-  const [selectedRoomId, setSelectedRoomId] = useState(initialRoomId);
+  const [query, setQuery] = useState(() => searchParams.get('q') || '');
+  const [activeTab, setActiveTab] = useState(() => searchParams.get('type') || 'all');
+  const [selectedRoomId, setSelectedRoomId] = useState(() => searchParams.get('roomId') || '');
   const [accessibleRooms, setAccessibleRooms] = useState([]);
 
   const [resultsData, setResultsData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(() => parseInt(searchParams.get('page'), 10) || 1);
 
   const inputRef = useRef(null);
 
@@ -77,7 +77,7 @@ export const SearchPage = () => {
   }, []);
 
   // 2. Perform search when query, tab, room, or page changes
-  const executeSearch = async (searchTerm, tabType, roomScope, pageNum = 1) => {
+  const executeSearch = useCallback(async (searchTerm, tabType, roomScope, pageNum = 1) => {
     const trimmed = (searchTerm || '').trim();
 
     // If query is empty and type is not 'rooms', clear results
@@ -107,7 +107,7 @@ export const SearchPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   // Sync with URL params
   useEffect(() => {
@@ -126,7 +126,7 @@ export const SearchPage = () => {
     } else {
       setResultsData(null);
     }
-  }, [searchParams]);
+  }, [searchParams, executeSearch]);
 
   // Handle form submission
   const handleSearchSubmit = (e) => {
@@ -165,12 +165,12 @@ export const SearchPage = () => {
     setSearchParams(newParams);
   };
 
-  // Handle Room Scope Change
-  const handleRoomChange = (roomId) => {
-    setSelectedRoomId(roomId);
+  // Handle Room Dropdown Change
+  const handleRoomChange = (rId) => {
+    setSelectedRoomId(rId);
     const newParams = new URLSearchParams(searchParams);
-    if (roomId) {
-      newParams.set('roomId', roomId);
+    if (rId) {
+      newParams.set('roomId', rId);
     } else {
       newParams.delete('roomId');
     }
@@ -179,21 +179,15 @@ export const SearchPage = () => {
   };
 
   // Handle Suggestion Click
-  const handleSuggestionClick = (suggested) => {
-    setQuery(suggested);
+  const handleSuggestionClick = (sug) => {
+    setQuery(sug);
     const newParams = new URLSearchParams(searchParams);
-    newParams.set('q', suggested);
+    newParams.set('q', sug);
     newParams.set('page', '1');
     setSearchParams(newParams);
   };
 
-  // Navigate to Message in Chat
-  const handleNavigateToMessage = (msg) => {
-    if (!msg?.room?.slug) return;
-    navigate(`/community/${msg.room.slug}?messageId=${msg.id}`);
-  };
-
-  // Format timestamp helper
+  // Helper to format date
   const formatTime = (dateStr) => {
     if (!dateStr) return '';
     const d = new Date(dateStr);
@@ -205,50 +199,57 @@ export const SearchPage = () => {
     });
   };
 
-  // Highlight matching keyword helper
-  const renderHighlightedText = (text, term) => {
-    if (!text) return null;
-    if (!term || !term.trim()) return text;
+  // Helper to navigate to message in room chat
+  const handleNavigateToMessage = (message) => {
+    if (!message) return;
+    const roomSlug = message.room?.slug;
+    if (roomSlug) {
+      navigate(`/community/${roomSlug}?messageId=${message.id}`);
+    }
+  };
 
-    const words = term
-      .trim()
-      .split(/\s+/)
-      .filter(Boolean)
-      .map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  // Helper to highlight matching text in snippet
+  const renderHighlightedText = (text, highlight) => {
+    if (!text) return '';
+    if (!highlight || !highlight.trim()) return text;
 
-    if (words.length === 0) return text;
+    try {
+      const escaped = highlight.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`(${escaped})`, 'gi');
+      const parts = text.split(regex);
 
-    const regex = new RegExp(`(${words.join('|')})`, 'gi');
-    const parts = text.split(regex);
-
-    return parts.map((part, i) =>
-      regex.test(part) ? (
-        <mark
-          key={i}
-          className="bg-indigo-500/30 text-indigo-200 px-0.5 rounded font-medium border border-indigo-500/40"
-        >
-          {part}
-        </mark>
-      ) : (
-        part
-      )
-    );
+      return parts.map((part, index) =>
+        regex.test(part) ? (
+          <mark
+            key={index}
+            className="bg-indigo-500/30 text-indigo-200 font-semibold rounded px-0.5"
+          >
+            {part}
+          </mark>
+        ) : (
+          part
+        )
+      );
+    } catch {
+      return text;
+    }
   };
 
   return (
-    <div className="min-h-screen bg-[#07090e] text-slate-100 flex flex-col font-sans selection:bg-indigo-500/30 selection:text-indigo-200">
-      {/* Top Header Bar */}
-      <header className="sticky top-0 z-40 bg-[#080b12]/90 backdrop-blur-md border-b border-white/[0.08] shadow-md shadow-black/30">
+    <CinematicBackground className="selection:bg-indigo-500/30 selection:text-indigo-200">
+      
+      {/* Header Bar */}
+      <header className="sticky top-0 z-40 glass-panel-deep border-b border-white/[0.08] shadow-2xl shadow-black/50">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <Link
               to="/dashboard"
-              className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white hover:border-slate-700 transition-colors"
+              className="p-2 rounded-xl bg-slate-900/90 border border-white/[0.08] text-slate-400 hover:text-white hover:border-indigo-500/50 transition-colors"
               title="Return to Dashboard"
             >
-              <ChevronLeft className="w-5 h-5" />
+              <ArrowLeft className="w-4 h-4" />
             </Link>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2.5">
               <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-cyan-500 flex items-center justify-center text-white shadow-md shadow-indigo-500/20">
                 <Search className="w-4 h-4" />
               </div>
@@ -267,7 +268,7 @@ export const SearchPage = () => {
             <NotificationDropdown />
             <Link
               to="/dashboard"
-              className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-indigo-500/40 text-xs text-slate-300 hover:text-white transition-colors"
+              className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900/90 border border-white/[0.08] hover:border-indigo-500/40 text-xs text-slate-300 hover:text-white transition-colors"
             >
               <span>{getAvatarDisplay(user?.anonymousAvatar)}</span>
               <span className="font-semibold text-slate-200 truncate max-w-[120px]">
@@ -280,9 +281,10 @@ export const SearchPage = () => {
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
+        
         {/* Search Input Box */}
         <form onSubmit={handleSearchSubmit} className="space-y-3">
-          <div className="relative flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 bg-[#0d1222] border border-white/[0.1] rounded-2xl sm:rounded-full p-2 shadow-2xl shadow-indigo-950/20 focus-within:border-indigo-500/60 focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all">
+          <div className="relative flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 bg-[#0a0f1d]/90 border border-white/[0.1] rounded-2xl sm:rounded-full p-2 shadow-2xl shadow-indigo-950/20 focus-within:border-indigo-500/60 focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all backdrop-blur-xl">
             <div className="flex items-center flex-1 px-3 gap-3 min-w-0">
               <Search className="w-5 h-5 text-indigo-400 flex-shrink-0" />
               <input
@@ -292,7 +294,7 @@ export const SearchPage = () => {
                 onChange={(e) => setQuery(e.target.value)}
                 maxLength={100}
                 placeholder="Search messages, rooms, notices, or polls..."
-                className="w-full bg-transparent text-sm sm:text-base text-white placeholder-slate-500 focus:outline-none"
+                className="w-full bg-transparent text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none"
               />
               {query && (
                 <button
@@ -307,11 +309,11 @@ export const SearchPage = () => {
             </div>
 
             {/* Room Scope Filter Dropdown */}
-            <div className="flex items-center gap-2 px-2 border-t sm:border-t-0 sm:border-l border-white/[0.08] pt-2 sm:pt-0">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 px-2 border-t sm:border-t-0 sm:border-l border-white/[0.08] pt-2 sm:pt-0">
               <select
                 value={selectedRoomId}
                 onChange={(e) => handleRoomChange(e.target.value)}
-                className="bg-slate-900/90 text-xs text-slate-300 rounded-xl px-3 py-2 border border-white/[0.06] hover:border-slate-700 focus:outline-none cursor-pointer"
+                className="w-full sm:w-auto flex-1 min-w-0 bg-slate-900/90 text-xs text-slate-300 rounded-xl px-3 py-2.5 min-h-[42px] border border-white/[0.06] hover:border-slate-700 focus:outline-none cursor-pointer"
                 title="Filter by authorized room"
               >
                 <option value="">All Accessible Rooms</option>
@@ -325,7 +327,7 @@ export const SearchPage = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="px-5 py-2 rounded-xl sm:rounded-full bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white text-xs font-semibold shadow-md shadow-indigo-600/30 transition-all flex items-center justify-center gap-1.5 flex-shrink-0"
+                className="btn-cinema-primary text-xs min-h-[42px] py-2.5 px-5 rounded-xl sm:rounded-full shadow-md flex-shrink-0 w-full sm:w-auto justify-center cursor-pointer"
               >
                 {loading ? (
                   <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -344,7 +346,7 @@ export const SearchPage = () => {
                 key={sug}
                 type="button"
                 onClick={() => handleSuggestionClick(sug)}
-                className="px-2.5 py-1 rounded-lg bg-slate-900/80 border border-white/[0.06] text-slate-300 hover:text-indigo-300 hover:border-indigo-500/30 hover:bg-slate-800 transition-colors"
+                className="px-2.5 py-1.5 min-h-[32px] rounded-lg bg-slate-900/80 border border-white/[0.06] text-slate-300 hover:text-indigo-300 hover:border-indigo-500/30 hover:bg-slate-800 transition-colors cursor-pointer"
               >
                 {sug}
               </button>
@@ -353,7 +355,7 @@ export const SearchPage = () => {
         </form>
 
         {/* Category Tabs */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 border-b border-white/[0.06] scrollbar-none">
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-white/[0.06] -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-none">
           {SEARCH_TABS.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -370,9 +372,9 @@ export const SearchPage = () => {
                 key={tab.id}
                 type="button"
                 onClick={() => handleTabChange(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
+                className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 min-h-[40px] rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
                   isActive
-                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
+                    ? 'btn-cinema-primary shadow-md'
                     : 'bg-slate-900/70 border border-white/[0.05] text-slate-400 hover:text-slate-200 hover:bg-slate-800/80'
                 }`}
               >
@@ -438,7 +440,7 @@ export const SearchPage = () => {
             {/* If type === 'all' and total === 0 */}
             {resultsData.type === 'all' && resultsData.total === 0 && (
               <div className="py-16 text-center max-w-md mx-auto space-y-4">
-                <div className="w-14 h-14 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center mx-auto text-slate-500">
+                <div className="w-14 h-14 rounded-2xl bg-slate-900 border border-white/[0.08] flex items-center justify-center mx-auto text-slate-500">
                   <Search className="w-7 h-7" />
                 </div>
                 <div className="space-y-1">
@@ -451,7 +453,7 @@ export const SearchPage = () => {
                 <button
                   type="button"
                   onClick={handleClear}
-                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 transition-colors"
+                  className="btn-cinema-secondary text-xs py-2 px-4"
                 >
                   Clear Search
                 </button>
@@ -461,7 +463,7 @@ export const SearchPage = () => {
             {/* If single category and results array is empty */}
             {resultsData.type !== 'all' && resultsData.results?.length === 0 && (
               <div className="py-16 text-center max-w-md mx-auto space-y-4">
-                <div className="w-14 h-14 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center mx-auto text-slate-500">
+                <div className="w-14 h-14 rounded-2xl bg-slate-900 border border-white/[0.08] flex items-center justify-center mx-auto text-slate-500">
                   <Search className="w-7 h-7" />
                 </div>
                 <div className="space-y-1">
@@ -475,7 +477,7 @@ export const SearchPage = () => {
                 <button
                   type="button"
                   onClick={() => handleTabChange('all')}
-                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white transition-colors"
+                  className="btn-cinema-primary text-xs py-2 px-4"
                 >
                   Search in All Categories
                 </button>
@@ -484,7 +486,7 @@ export const SearchPage = () => {
 
             {/* RESULTS RENDERING: TYPE === 'ALL' */}
             {resultsData.type === 'all' && resultsData.total > 0 && (
-              <div className="space-y-8">
+              <div className="space-y-8 animate-slide-up">
                 {/* 1. Rooms Section */}
                 {resultsData.results.rooms?.length > 0 && (
                   <section className="space-y-3">
@@ -503,25 +505,22 @@ export const SearchPage = () => {
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {resultsData.results.rooms.map((room) => (
-                        <div
+                        <GlassCard
                           key={room.id}
+                          variant="interactive"
+                          glow={true}
+                          hoverLift={true}
                           onClick={() => navigate(`/community/${room.slug}`)}
-                          className="p-4 rounded-2xl bg-[#0c101d] border border-white/[0.08] hover:border-cyan-500/40 hover:bg-slate-900/60 transition-all cursor-pointer group flex items-start justify-between gap-3 shadow-md"
+                          className="p-4 cursor-pointer group flex items-start justify-between gap-3 shadow-md"
                         >
                           <div className="space-y-1.5 min-w-0">
                             <div className="flex items-center gap-2">
                               <span className="font-bold text-sm text-white group-hover:text-cyan-300 transition-colors">
                                 {room.name}
                               </span>
-                              <span
-                                className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${
-                                  room.type === 'global'
-                                    ? 'bg-cyan-500/10 text-cyan-300 border-cyan-500/20'
-                                    : 'bg-indigo-500/10 text-indigo-300 border-indigo-500/20'
-                                }`}
-                              >
+                              <Badge variant={room.type === 'global' ? 'cyan' : 'indigo'} size="sm">
                                 {room.type === 'global' ? 'Global' : room.allowedYear}
-                              </span>
+                              </Badge>
                             </div>
                             <p className="text-xs text-slate-400 line-clamp-2">
                               {renderHighlightedText(room.description, query)}
@@ -530,7 +529,7 @@ export const SearchPage = () => {
                           <div className="p-2 rounded-xl bg-slate-800 text-slate-400 group-hover:text-white group-hover:bg-cyan-600 transition-colors flex-shrink-0">
                             <ChevronRight className="w-4 h-4" />
                           </div>
-                        </div>
+                        </GlassCard>
                       ))}
                     </div>
                   </section>
@@ -554,25 +553,28 @@ export const SearchPage = () => {
 
                     <div className="space-y-3">
                       {resultsData.results.announcements.map((ann) => (
-                        <div
+                        <GlassCard
                           key={ann.id}
+                          variant="interactive"
+                          hoverLift={true}
                           onClick={() => ann.room?.slug && navigate(`/community/${ann.room.slug}`)}
-                          className="p-4 rounded-2xl bg-[#0c101d] border border-white/[0.08] hover:border-indigo-500/40 transition-all cursor-pointer space-y-2"
+                          className="p-4 cursor-pointer space-y-2"
                         >
                           <div className="flex items-center justify-between gap-2 flex-wrap">
                             <div className="flex items-center gap-2">
-                              <span
-                                className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+                              <Badge
+                                variant={
                                   ann.priority === 'urgent'
-                                    ? 'bg-rose-500/15 text-rose-300 border-rose-500/30'
+                                    ? 'rose'
                                     : ann.priority === 'important'
-                                    ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
-                                    : 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30'
-                                }`}
+                                    ? 'amber'
+                                    : 'indigo'
+                                }
+                                size="sm"
                               >
                                 {ann.priority}
-                              </span>
-                              <span className="text-xs font-bold text-white">
+                              </Badge>
+                              <span className="text-xs sm:text-sm font-bold text-white">
                                 {renderHighlightedText(ann.title, query)}
                               </span>
                             </div>
@@ -580,10 +582,10 @@ export const SearchPage = () => {
                               {ann.room?.name} • {formatTime(ann.createdAt)}
                             </span>
                           </div>
-                          <p className="text-xs text-slate-300 line-clamp-2">
+                          <p className="text-xs sm:text-sm text-slate-300 line-clamp-2">
                             {renderHighlightedText(ann.content, query)}
                           </p>
-                        </div>
+                        </GlassCard>
                       ))}
                     </div>
                   </section>
@@ -607,10 +609,12 @@ export const SearchPage = () => {
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {resultsData.results.polls.map((poll) => (
-                        <div
+                        <GlassCard
                           key={poll.id}
+                          variant="interactive"
+                          hoverLift={true}
                           onClick={() => poll.room?.slug && navigate(`/community/${poll.room.slug}`)}
-                          className="p-4 rounded-2xl bg-[#0c101d] border border-white/[0.08] hover:border-emerald-500/40 transition-all cursor-pointer space-y-2.5"
+                          className="p-4 cursor-pointer space-y-2.5"
                         >
                           <div className="flex items-center justify-between text-[11px] text-slate-400">
                             <span className="font-semibold text-emerald-400">
@@ -625,7 +629,7 @@ export const SearchPage = () => {
                             <span>{poll.room?.name}</span>
                             <span>{poll.optionsCount} choices</span>
                           </div>
-                        </div>
+                        </GlassCard>
                       ))}
                     </div>
                   </section>
@@ -649,12 +653,14 @@ export const SearchPage = () => {
 
                     <div className="space-y-2.5">
                       {resultsData.results.messages.map((msg) => (
-                        <div
+                        <GlassCard
                           key={msg.id}
+                          variant="interactive"
+                          hoverLift={true}
                           onClick={() => handleNavigateToMessage(msg)}
-                          className="p-3.5 sm:p-4 rounded-2xl bg-[#0c101d] border border-white/[0.08] hover:border-indigo-500/50 hover:bg-slate-900/60 transition-all cursor-pointer space-y-2 group shadow-sm"
+                          className="p-3.5 sm:p-4 cursor-pointer space-y-2 group shadow-sm"
                         >
-                          <div className="flex items-center justify-between text-xs">
+                          <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
                             <div className="flex items-center gap-2 min-w-0">
                               <span className="text-base flex-shrink-0">
                                 {getAvatarDisplay(msg.sender?.anonymousAvatar)}
@@ -662,13 +668,13 @@ export const SearchPage = () => {
                               <span className="font-semibold text-slate-200 truncate">
                                 {msg.sender?.anonymousName}
                               </span>
-                              <span className="text-[10px] font-mono text-cyan-300 px-1.5 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/20">
+                              <Badge variant="cyan" size="sm">
                                 {msg.sender?.year}
-                              </span>
+                              </Badge>
                             </div>
 
                             <div className="flex items-center gap-2 flex-shrink-0 text-slate-400 text-[11px]">
-                              <span className="px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+                              <span className="px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-white/[0.06]">
                                 {msg.room?.name}
                               </span>
                               <span>{formatTime(msg.createdAt)}</span>
@@ -690,7 +696,7 @@ export const SearchPage = () => {
                               </span>
                             </div>
                           )}
-                        </div>
+                        </GlassCard>
                       ))}
                     </div>
                   </section>
@@ -717,12 +723,13 @@ export const SearchPage = () => {
                 {resultsData.type === 'messages' && (
                   <div className="space-y-3">
                     {resultsData.results.map((msg) => (
-                      <div
+                      <GlassCard
                         key={msg.id}
+                        variant="interactive"
                         onClick={() => handleNavigateToMessage(msg)}
-                        className="p-4 rounded-2xl bg-[#0c101d] border border-white/[0.08] hover:border-indigo-500/50 hover:bg-slate-900/60 transition-all cursor-pointer space-y-2 group shadow-sm"
+                        className="p-4 cursor-pointer space-y-2 group shadow-sm"
                       >
-                        <div className="flex items-center justify-between text-xs">
+                        <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
                           <div className="flex items-center gap-2 min-w-0">
                             <span className="text-base flex-shrink-0">
                               {getAvatarDisplay(msg.sender?.anonymousAvatar)}
@@ -730,13 +737,13 @@ export const SearchPage = () => {
                             <span className="font-semibold text-slate-200 truncate">
                               {msg.sender?.anonymousName}
                             </span>
-                            <span className="text-[10px] font-mono text-cyan-300 px-1.5 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/20">
+                            <Badge variant="cyan" size="sm">
                               {msg.sender?.year}
-                            </span>
+                            </Badge>
                           </div>
 
                           <div className="flex items-center gap-2 flex-shrink-0 text-slate-400 text-[11px]">
-                            <span className="px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+                            <span className="px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-white/[0.06]">
                               {msg.room?.name}
                             </span>
                             <span>{formatTime(msg.createdAt)}</span>
@@ -758,7 +765,7 @@ export const SearchPage = () => {
                             </span>
                           </div>
                         )}
-                      </div>
+                      </GlassCard>
                     ))}
                   </div>
                 )}
@@ -766,34 +773,30 @@ export const SearchPage = () => {
                 {resultsData.type === 'rooms' && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {resultsData.results.map((room) => (
-                      <div
+                      <GlassCard
                         key={room.id}
+                        variant="interactive"
+                        glow={true}
                         onClick={() => navigate(`/community/${room.slug}`)}
-                        className="p-5 rounded-2xl bg-[#0c101d] border border-white/[0.08] hover:border-cyan-500/40 hover:bg-slate-900/60 transition-all cursor-pointer group flex items-start justify-between gap-4 shadow-md"
+                        className="p-5 cursor-pointer group flex items-start justify-between gap-4 shadow-md"
                       >
                         <div className="space-y-2 min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="font-bold text-base text-white group-hover:text-cyan-300 transition-colors">
                               {room.name}
                             </span>
-                            <span
-                              className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${
-                                room.type === 'global'
-                                  ? 'bg-cyan-500/10 text-cyan-300 border-cyan-500/20'
-                                  : 'bg-indigo-500/10 text-indigo-300 border-indigo-500/20'
-                              }`}
-                            >
+                            <Badge variant={room.type === 'global' ? 'cyan' : 'indigo'} size="sm">
                               {room.type === 'global' ? 'Global' : room.allowedYear}
-                            </span>
+                            </Badge>
                           </div>
-                          <p className="text-xs text-slate-400 leading-relaxed">
+                          <p className="text-xs text-slate-300 leading-relaxed">
                             {renderHighlightedText(room.description, query)}
                           </p>
                         </div>
                         <div className="p-2.5 rounded-xl bg-slate-800 text-slate-400 group-hover:text-white group-hover:bg-cyan-600 transition-colors flex-shrink-0">
-                          <ChevronRight className="w-5 h-5" />
+                          <ChevronRight className="w-4 h-4" />
                         </div>
-                      </div>
+                      </GlassCard>
                     ))}
                   </div>
                 )}
@@ -801,24 +804,26 @@ export const SearchPage = () => {
                 {resultsData.type === 'announcements' && (
                   <div className="space-y-3">
                     {resultsData.results.map((ann) => (
-                      <div
+                      <GlassCard
                         key={ann.id}
+                        variant="interactive"
                         onClick={() => ann.room?.slug && navigate(`/community/${ann.room.slug}`)}
-                        className="p-4 rounded-2xl bg-[#0c101d] border border-white/[0.08] hover:border-indigo-500/40 transition-all cursor-pointer space-y-2"
+                        className="p-4 cursor-pointer space-y-2"
                       >
                         <div className="flex items-center justify-between gap-2 flex-wrap">
                           <div className="flex items-center gap-2">
-                            <span
-                              className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+                            <Badge
+                              variant={
                                 ann.priority === 'urgent'
-                                  ? 'bg-rose-500/15 text-rose-300 border-rose-500/30'
+                                  ? 'rose'
                                   : ann.priority === 'important'
-                                  ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
-                                  : 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30'
-                              }`}
+                                  ? 'amber'
+                                  : 'indigo'
+                              }
+                              size="sm"
                             >
                               {ann.priority}
-                            </span>
+                            </Badge>
                             <span className="text-sm font-bold text-white">
                               {renderHighlightedText(ann.title, query)}
                             </span>
@@ -830,7 +835,7 @@ export const SearchPage = () => {
                         <p className="text-xs sm:text-sm text-slate-300">
                           {renderHighlightedText(ann.content, query)}
                         </p>
-                      </div>
+                      </GlassCard>
                     ))}
                   </div>
                 )}
@@ -838,10 +843,11 @@ export const SearchPage = () => {
                 {resultsData.type === 'polls' && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {resultsData.results.map((poll) => (
-                      <div
+                      <GlassCard
                         key={poll.id}
+                        variant="interactive"
                         onClick={() => poll.room?.slug && navigate(`/community/${poll.room.slug}`)}
-                        className="p-5 rounded-2xl bg-[#0c101d] border border-white/[0.08] hover:border-emerald-500/40 transition-all cursor-pointer space-y-3"
+                        className="p-5 cursor-pointer space-y-3"
                       >
                         <div className="flex items-center justify-between text-xs text-slate-400">
                           <span className="font-semibold text-emerald-400">
@@ -867,7 +873,7 @@ export const SearchPage = () => {
                           <span>{poll.room?.name}</span>
                           <span className="text-indigo-400">Open in room →</span>
                         </div>
-                      </div>
+                      </GlassCard>
                     ))}
                   </div>
                 )}
@@ -884,7 +890,7 @@ export const SearchPage = () => {
                         newParams.set('page', String(newPage));
                         setSearchParams(newParams);
                       }}
-                      className="inline-flex items-center gap-1 px-4 py-2 rounded-xl text-xs font-semibold text-slate-300 bg-slate-900 border border-slate-800 hover:bg-slate-800 disabled:opacity-40 disabled:pointer-events-none transition-colors"
+                      className="btn-cinema-secondary text-xs min-h-[44px] py-2 px-4 disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
                     >
                       <ChevronLeft className="w-4 h-4" />
                       <span>Previous</span>
@@ -901,7 +907,7 @@ export const SearchPage = () => {
                         newParams.set('page', String(newPage));
                         setSearchParams(newParams);
                       }}
-                      className="inline-flex items-center gap-1 px-4 py-2 rounded-xl text-xs font-semibold text-slate-300 bg-slate-900 border border-slate-800 hover:bg-slate-800 disabled:opacity-40 disabled:pointer-events-none transition-colors"
+                      className="btn-cinema-secondary text-xs min-h-[44px] py-2 px-4 disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
                     >
                       <span>Next</span>
                       <ChevronRight className="w-4 h-4" />
@@ -913,7 +919,7 @@ export const SearchPage = () => {
           </>
         )}
       </main>
-    </div>
+    </CinematicBackground>
   );
 };
 

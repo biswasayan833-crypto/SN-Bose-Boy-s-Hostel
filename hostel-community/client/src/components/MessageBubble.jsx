@@ -9,10 +9,11 @@ import {
   CheckCircle2,
   Pin,
   FileText,
-  Download,
   ExternalLink,
 } from 'lucide-react';
 import { getAvatarDisplay } from './AvatarPicker';
+import { GlassCard } from './ui/GlassCard';
+import { Badge } from './ui/Badge';
 
 export const REACTION_CONFIG = [
   { type: 'like', emoji: '👍', label: 'Like' },
@@ -100,34 +101,26 @@ export const MessageBubble = ({
     );
   };
 
-  // Get reaction count for a type
+  // Compute reaction count for a given type
   const getReactionCount = (type) => {
-    if (message.reactionCounts && typeof message.reactionCounts[type] === 'number') {
-      return message.reactionCounts[type];
-    }
-    if (Array.isArray(message.reactions)) {
-      return message.reactions.filter((r) => r.type === type).length;
-    }
-    return 0;
+    if (!Array.isArray(message.reactions)) return 0;
+    return message.reactions.filter((r) => r.type === type).length;
   };
 
   // Handle reaction click
   const handleReactionClick = (type) => {
-    if (isDeleted) return;
-    const isReacted = hasUserReacted(type);
-    if (onReactionToggle) {
-      onReactionToggle(message.id, type, isReacted);
-    }
+    if (isDeleted || !onReactionToggle) return;
+    const currentlyReacted = hasUserReacted(type);
+    onReactionToggle(message.id, type, currentlyReacted);
   };
 
-  // Handle delete confirmation
+  // Handle delete confirm
   const handleConfirmDelete = async () => {
+    if (!onDeleteMessage) return;
     try {
       setSubmittingAction(true);
       setActionError('');
-      if (onDeleteMessage) {
-        await onDeleteMessage(message.id);
-      }
+      await onDeleteMessage(message.id);
       setDeleteModalOpen(false);
     } catch (err) {
       setActionError(err.message || 'Failed to delete message.');
@@ -136,18 +129,18 @@ export const MessageBubble = ({
     }
   };
 
-  // Handle submit report
+  // Handle report submit
   const handleConfirmReport = async (e) => {
     if (e) e.preventDefault();
+    if (!onReportMessage) return;
     try {
       setSubmittingAction(true);
       setActionError('');
-      if (onReportMessage) {
-        await onReportMessage(message.id, {
-          reason: selectedReason,
-          notes: reportNotes,
-        });
-      }
+      await onReportMessage({
+        messageId: message.id,
+        reason: selectedReason,
+        notes: reportNotes.trim(),
+      });
       setReportSuccess(true);
       setTimeout(() => {
         setReportSuccess(false);
@@ -169,7 +162,7 @@ export const MessageBubble = ({
     <div
       className={`flex flex-col ${
         isCurrentUser ? 'items-end' : 'items-start'
-      } space-y-1 group relative`}
+      } space-y-1 group relative animate-fade-in`}
     >
       {/* Sender Persona Metadata */}
       <div className="flex items-center gap-2 px-1 text-[11px] text-slate-400">
@@ -181,34 +174,34 @@ export const MessageBubble = ({
         >
           {message.sender?.anonymousName}
         </span>
-        <span className="text-[10px] bg-slate-800/80 text-slate-400 px-1.5 py-0.2 rounded border border-slate-700/60 font-mono">
+        <span className="text-[10px] bg-slate-800/80 text-slate-400 px-1.5 py-0.2 rounded border border-white/[0.06] font-mono">
           {message.sender?.year}
         </span>
         <span className="text-[10px] text-slate-500 font-mono">
           {formatTime(message.createdAt)}
         </span>
         {message.isPinned && (
-          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-violet-300 bg-violet-500/15 px-1.5 py-0.5 rounded border border-violet-500/30">
+          <Badge variant="violet" size="sm">
             <Pin className="w-2.5 h-2.5 rotate-45 text-violet-400" />
-            Pinned
-          </span>
+            <span>Pinned</span>
+          </Badge>
         )}
       </div>
 
-      {/* Bubble Row with Hover Quick-Actions */}
+      {/* Bubble Row with Quick-Actions */}
       <div
-        className={`relative flex items-center gap-1.5 max-w-[88%] sm:max-w-[75%] ${
+        className={`relative flex items-center max-w-[92%] sm:max-w-[78%] ${
           isCurrentUser ? 'flex-row-reverse' : 'flex-row'
         }`}
       >
         {/* Message Bubble Body */}
         <div
-          className={`relative rounded-2xl px-4 py-2.5 text-sm leading-relaxed break-words shadow-md transition-all ${
+          className={`relative rounded-2xl px-3.5 sm:px-4 py-2.5 text-xs sm:text-sm leading-relaxed break-words [overflow-wrap:anywhere] shadow-md transition-all ${
             isDeleted
-              ? 'bg-slate-900/60 border border-slate-800/80 text-slate-400 italic rounded-tl-none sm:min-w-[160px]'
+              ? 'bg-slate-900/60 border border-white/[0.06] text-slate-400 italic rounded-tl-none sm:min-w-[160px]'
               : isCurrentUser
-              ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white rounded-tr-none'
-              : 'bg-slate-900/90 border border-white/[0.08] text-slate-100 rounded-tl-none'
+              ? 'bg-gradient-to-br from-indigo-600 to-indigo-700 text-white rounded-tr-none border border-indigo-400/25 shadow-lg shadow-indigo-950/40'
+              : 'bg-[#0e1424]/90 border border-white/[0.08] text-slate-100 rounded-tl-none shadow-md backdrop-blur-sm'
           }`}
         >
           {isDeleted ? (
@@ -242,19 +235,19 @@ export const MessageBubble = ({
                         </div>
                       </div>
                       <div className="flex items-center justify-between gap-2 text-[10px] text-slate-300 font-mono px-0.5">
-                        <span className="truncate max-w-[180px] sm:max-w-xs">{message.attachment.originalName}</span>
+                        <span className="truncate max-w-[150px] sm:max-w-xs">{message.attachment.originalName}</span>
                         <span className="flex-shrink-0 text-slate-400">({formatFileSize(message.attachment.size)})</span>
                       </div>
                     </div>
                   ) : (
                     /* PDF Document Card */
-                    <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-black/30 border border-white/10 hover:border-indigo-500/40 transition-colors">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="w-10 h-10 rounded-xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center flex-shrink-0">
-                          <FileText className="w-5 h-5 text-rose-400" />
+                    <div className="flex items-center justify-between gap-2.5 p-2.5 sm:p-3 rounded-xl bg-black/35 border border-white/10 hover:border-indigo-500/40 transition-colors">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center flex-shrink-0">
+                          <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-rose-400" />
                         </div>
                         <div className="min-w-0">
-                          <div className="text-xs font-bold text-white truncate max-w-[160px] sm:max-w-xs" title={message.attachment.originalName}>
+                          <div className="text-xs font-bold text-white truncate max-w-[120px] sm:max-w-xs" title={message.attachment.originalName}>
                             {message.attachment.originalName}
                           </div>
                           <div className="text-[10px] text-slate-400 font-mono">
@@ -267,7 +260,7 @@ export const MessageBubble = ({
                         href={getAuthAttachmentUrl(message.attachment.url)}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors flex items-center gap-1 text-xs font-medium flex-shrink-0"
+                        className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors flex items-center gap-1 text-xs font-medium flex-shrink-0 min-h-[36px]"
                         title="Open PDF"
                       >
                         <ExternalLink className="w-3.5 h-3.5" />
@@ -286,11 +279,11 @@ export const MessageBubble = ({
           )}
         </div>
 
-        {/* Hover Quick Actions Bar (hidden when message is deleted) */}
+        {/* Floating Quick Actions Bar (hidden when message is deleted) */}
         {!isDeleted && (
           <div
-            className={`opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-150 flex items-center gap-1 bg-[#0b0f19]/95 border border-white/[0.1] rounded-full px-2 py-1 shadow-lg backdrop-blur-md z-10 ${
-              isCurrentUser ? 'mr-1' : 'ml-1'
+            className={`opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-150 flex items-center gap-1 bg-[#0b0f19]/95 border border-white/[0.1] rounded-full px-2 py-1 shadow-lg backdrop-blur-md z-20 absolute -top-3.5 ${
+              isCurrentUser ? 'right-2' : 'left-2'
             }`}
           >
             {/* Quick emoji buttons */}
@@ -303,7 +296,7 @@ export const MessageBubble = ({
                     type="button"
                     onClick={() => handleReactionClick(cfg.type)}
                     title={cfg.label}
-                    className={`w-6 h-6 rounded-full flex items-center justify-center text-xs hover:scale-125 transition-transform ${
+                    className={`w-7 h-7 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-xs hover:scale-125 transition-transform touch-manipulation cursor-pointer ${
                       reacted
                         ? 'bg-indigo-500/30 scale-110 shadow-inner'
                         : 'hover:bg-slate-800'
@@ -323,7 +316,7 @@ export const MessageBubble = ({
               <button
                 type="button"
                 onClick={() => setMenuOpen(!menuOpen)}
-                className="w-6 h-6 rounded-full hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
+                className="w-7 h-7 sm:w-6 sm:h-6 rounded-full hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white transition-colors cursor-pointer"
                 title="More message options"
               >
                 <MoreVertical className="w-3.5 h-3.5" />
@@ -334,7 +327,7 @@ export const MessageBubble = ({
                 <div
                   className={`absolute bottom-full mb-2 ${
                     isCurrentUser ? 'right-0' : 'left-0'
-                  } w-36 bg-[#0d1222] border border-white/[0.12] rounded-xl shadow-2xl py-1.5 z-30 animate-in fade-in zoom-in-95 duration-100`}
+                  } w-40 glass-panel-elevated rounded-xl shadow-2xl py-1.5 z-30 animate-in fade-in zoom-in-95 duration-100`}
                 >
                   {currentUser?.role === 'admin' && onTogglePin && (
                     <button
@@ -343,7 +336,7 @@ export const MessageBubble = ({
                         setMenuOpen(false);
                         onTogglePin(message.id, !message.isPinned);
                       }}
-                      className="w-full px-3 py-1.5 text-xs text-violet-300 hover:text-violet-200 hover:bg-violet-500/10 flex items-center gap-2 transition-colors text-left"
+                      className="w-full px-3 py-2 text-xs text-violet-300 hover:text-violet-200 hover:bg-violet-500/10 flex items-center gap-2 transition-colors text-left min-h-[38px] cursor-pointer"
                     >
                       <Pin className="w-3.5 h-3.5 text-violet-400" />
                       <span>{message.isPinned ? 'Unpin' : 'Pin Message'}</span>
@@ -357,7 +350,7 @@ export const MessageBubble = ({
                         setMenuOpen(false);
                         setDeleteModalOpen(true);
                       }}
-                      className="w-full px-3 py-1.5 text-xs text-rose-300 hover:text-rose-200 hover:bg-rose-500/10 flex items-center gap-2 transition-colors text-left"
+                      className="w-full px-3 py-2 text-xs text-rose-300 hover:text-rose-200 hover:bg-rose-500/10 flex items-center gap-2 transition-colors text-left min-h-[38px] cursor-pointer"
                     >
                       <Trash2 className="w-3.5 h-3.5 text-rose-400" />
                       <span>Delete</span>
@@ -369,7 +362,7 @@ export const MessageBubble = ({
                         setMenuOpen(false);
                         setReportModalOpen(true);
                       }}
-                      className="w-full px-3 py-1.5 text-xs text-amber-300 hover:text-amber-200 hover:bg-amber-500/10 flex items-center gap-2 transition-colors text-left"
+                      className="w-full px-3 py-2 text-xs text-amber-300 hover:text-amber-200 hover:bg-amber-500/10 flex items-center gap-2 transition-colors text-left min-h-[38px] cursor-pointer"
                     >
                       <Flag className="w-3.5 h-3.5 text-amber-400" />
                       <span>Report</span>
@@ -398,7 +391,7 @@ export const MessageBubble = ({
                 key={cfg.type}
                 type="button"
                 onClick={() => handleReactionClick(cfg.type)}
-                className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs transition-all active:scale-95 border ${
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 min-h-[30px] rounded-full text-xs transition-all active:scale-95 border hover:scale-105 active:animate-pop cursor-pointer ${
                   reacted
                     ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-300 font-semibold shadow-sm shadow-indigo-500/20'
                     : 'bg-slate-900/80 border-white/[0.08] text-slate-300 hover:border-slate-600 hover:bg-slate-800/80'
@@ -415,8 +408,8 @@ export const MessageBubble = ({
 
       {/* Delete Confirmation Modal */}
       {deleteModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-[#0c101d] border border-white/[0.12] rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl relative animate-in zoom-in-95">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+          <GlassCard variant="elevated" glow={true} className="max-w-sm w-full p-6 space-y-4 shadow-2xl relative animate-modal-enter">
             <div className="w-12 h-12 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 mx-auto">
               <Trash2 className="w-6 h-6" />
             </div>
@@ -449,36 +442,23 @@ export const MessageBubble = ({
                 type="button"
                 disabled={submittingAction}
                 onClick={handleConfirmDelete}
-                className="flex-1 py-2.5 rounded-xl text-xs font-semibold text-white bg-rose-600 hover:bg-rose-500 transition-colors shadow-lg shadow-rose-600/30 flex items-center justify-center gap-2"
+                className="flex-1 py-2.5 rounded-xl text-xs font-semibold text-white bg-rose-600 hover:bg-rose-500 transition-colors shadow-lg shadow-rose-600/30"
               >
-                {submittingAction ? (
-                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                ) : (
-                  <span>Delete</span>
-                )}
+                {submittingAction ? 'Deleting...' : 'Delete'}
               </button>
             </div>
-          </div>
+          </GlassCard>
         </div>
       )}
 
       {/* Report Modal */}
       {reportModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-[#0c101d] border border-white/[0.12] rounded-3xl max-w-md w-full p-6 space-y-5 shadow-2xl relative animate-in zoom-in-95">
-            
-            {/* Header */}
-            <div className="flex items-center justify-between pb-3 border-b border-white/[0.08]">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
-                  <ShieldAlert className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-white">Report Message</h3>
-                  <p className="text-[11px] text-slate-400">
-                    Help keep Prof. S.N. Bose Hostel safe and respectful
-                  </p>
-                </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+          <GlassCard variant="elevated" glow={true} className="max-w-md w-full p-6 space-y-5 shadow-2xl relative animate-modal-enter">
+            <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
+              <div className="flex items-center gap-2 text-amber-400">
+                <ShieldAlert className="w-5 h-5" />
+                <h3 className="text-sm font-bold text-white">Report Message to Hostel Admin</h3>
               </div>
               <button
                 type="button"
@@ -490,15 +470,45 @@ export const MessageBubble = ({
             </div>
 
             {reportSuccess ? (
-              <div className="py-8 flex flex-col items-center justify-center space-y-2 text-center animate-in fade-in">
-                <CheckCircle2 className="w-10 h-10 text-emerald-400 animate-bounce" />
+              <div className="py-8 text-center space-y-3 animate-fade-in">
+                <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto" />
                 <h4 className="text-sm font-bold text-white">Report Submitted</h4>
-                <p className="text-xs text-slate-400">
-                  Thank you. Our moderation team will review this message.
+                <p className="text-xs text-slate-400 max-w-xs mx-auto">
+                  Hostel administration has been notified. Thank you for protecting community safety.
                 </p>
               </div>
             ) : (
               <form onSubmit={handleConfirmReport} className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-300">
+                    Reason for report
+                  </label>
+                  <select
+                    value={selectedReason}
+                    onChange={(e) => setSelectedReason(e.target.value)}
+                    className="input-cinema"
+                  >
+                    <option value="spam">Spam or Advertisements</option>
+                    <option value="harassment">Harassment or Abuse</option>
+                    <option value="inappropriate">Inappropriate or Vulgar Content</option>
+                    <option value="other">Other Violation</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-300">
+                    Additional notes (optional)
+                  </label>
+                  <textarea
+                    rows={3}
+                    maxLength={300}
+                    value={reportNotes}
+                    onChange={(e) => setReportNotes(e.target.value)}
+                    placeholder="Provide details for hostel moderators..."
+                    className="input-cinema resize-none"
+                  />
+                </div>
+
                 {actionError && (
                   <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
                     <AlertCircle className="w-4 h-4 flex-shrink-0" />
@@ -506,117 +516,57 @@ export const MessageBubble = ({
                   </div>
                 )}
 
-                <div className="space-y-2">
-                  <label className="text-xs font-semibold text-slate-200 block">
-                    Why are you reporting this message?
-                  </label>
-                  <div className="space-y-2">
-                    {[
-                      { id: 'spam', label: 'Spam' },
-                      { id: 'harassment', label: 'Harassment' },
-                      { id: 'hate', label: 'Hate' },
-                      { id: 'inappropriate', label: 'Inappropriate' },
-                      { id: 'threat', label: 'Threat' },
-                      { id: 'other', label: 'Other' },
-                    ].map((opt) => (
-                      <label
-                        key={opt.id}
-                        className={`flex items-center gap-3 p-2.5 rounded-xl border text-xs cursor-pointer transition-all ${
-                          selectedReason === opt.id
-                            ? 'bg-indigo-500/10 border-indigo-500/40 text-white font-medium'
-                            : 'bg-slate-900/60 border-white/[0.05] text-slate-300 hover:bg-slate-800/80 hover:border-slate-700'
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name="reportReason"
-                          value={opt.id}
-                          checked={selectedReason === opt.id}
-                          onChange={(e) => setSelectedReason(e.target.value)}
-                          className="accent-indigo-500 w-3.5 h-3.5"
-                        />
-                        <span>{opt.label}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Additional Notes */}
-                <div className="space-y-1">
-                  <label className="text-[11px] font-medium text-slate-400 block">
-                    Additional context (optional):
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={reportNotes}
-                    onChange={(e) => setReportNotes(e.target.value)}
-                    placeholder="Provide brief details to help moderators..."
-                    maxLength={300}
-                    className="w-full p-2.5 rounded-xl bg-slate-900/90 border border-slate-700 text-xs text-white placeholder-slate-500 resize-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                  />
-                </div>
-
-                {/* Buttons */}
-                <div className="flex items-center justify-end gap-3 pt-2">
+                <div className="flex items-center gap-3 pt-2">
                   <button
                     type="button"
                     disabled={submittingAction}
                     onClick={() => setReportModalOpen(false)}
-                    className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-300 bg-slate-800 hover:bg-slate-700 transition-colors"
+                    className="flex-1 py-2.5 rounded-xl text-xs font-semibold text-slate-300 bg-slate-800 hover:bg-slate-700 transition-colors"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={submittingAction}
-                    className="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 transition-all shadow-md shadow-indigo-600/30 flex items-center gap-2"
+                    className="flex-1 py-2.5 rounded-xl text-xs font-semibold text-white bg-amber-600 hover:bg-amber-500 transition-colors shadow-lg shadow-amber-600/30"
                   >
-                    {submittingAction ? (
-                      <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    ) : (
-                      <span>Submit Report</span>
-                    )}
+                    {submittingAction ? 'Submitting...' : 'Submit Report'}
                   </button>
                 </div>
               </form>
             )}
-          </div>
+          </GlassCard>
         </div>
       )}
 
-      {/* Full Image Preview Lightbox Modal */}
-      {imagePreviewOpen && message.attachment && (
+      {/* Fullscreen Image Lightbox Modal */}
+      {imagePreviewOpen && message.attachment?.url && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200"
           onClick={() => setImagePreviewOpen(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fade-in"
         >
-          <div className="relative max-w-4xl max-h-[90vh] flex flex-col items-center">
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="relative max-w-4xl max-h-[90vh] flex flex-col items-center animate-scale-in"
+          >
             <button
               onClick={() => setImagePreviewOpen(false)}
-              className="absolute -top-10 right-0 p-1.5 rounded-full bg-slate-800 text-slate-300 hover:text-white transition-colors"
+              aria-label="Close image"
+              className="absolute top-2 right-2 sm:-top-12 sm:right-0 p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-full bg-slate-900/85 hover:bg-slate-800 text-white backdrop-blur-md transition-colors z-20 cursor-pointer shadow-xl border border-white/10"
               title="Close image"
             >
               <X className="w-5 h-5" />
             </button>
+
             <img
               src={getAuthAttachmentUrl(message.attachment.url)}
               alt={message.attachment.originalName}
-              className="max-w-full max-h-[80vh] rounded-2xl object-contain shadow-2xl border border-white/10"
-              onClick={(e) => e.stopPropagation()}
+              className="max-w-full max-h-[80vh] object-contain rounded-2xl shadow-2xl border border-white/10"
             />
-            <div
-              className="mt-3 flex items-center justify-between w-full text-xs text-slate-300 px-2"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <span className="font-semibold truncate max-w-md">{message.attachment.originalName}</span>
-              <a
-                href={`${getAuthAttachmentUrl(message.attachment.url)}&download=true`}
-                download={message.attachment.originalName}
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow transition-colors"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>Download</span>
-              </a>
+
+            <div className="mt-3 text-center text-xs text-slate-300 font-mono">
+              <span>{message.attachment.originalName}</span> •{' '}
+              <span>{formatFileSize(message.attachment.size)}</span>
             </div>
           </div>
         </div>

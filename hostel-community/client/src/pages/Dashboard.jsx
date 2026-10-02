@@ -16,7 +16,6 @@ import {
   User,
   Megaphone,
   BarChart2,
-  Plus,
   Search,
 } from 'lucide-react';
 
@@ -30,6 +29,9 @@ import NotificationDropdown from '../components/NotificationDropdown';
 import AnnouncementCard from '../components/AnnouncementCard';
 import PollCard from '../components/PollCard';
 import { getAvatarDisplay } from '../components/AvatarPicker';
+import { GlassCard } from '../components/ui/GlassCard';
+import { Badge } from '../components/ui/Badge';
+import { CinematicBackground } from '../components/ui/CinematicBackground';
 
 export const Dashboard = () => {
   const { user, logout } = useAuth();
@@ -44,9 +46,7 @@ export const Dashboard = () => {
   const [roomsError, setRoomsError] = useState('');
 
   const [announcements, setAnnouncements] = useState([]);
-  const [loadingAnnouncements, setLoadingAnnouncements] = useState(true);
   const [polls, setPolls] = useState([]);
-  const [loadingPolls, setLoadingPolls] = useState(true);
 
   const fetchUnreadCounts = async () => {
     try {
@@ -54,7 +54,7 @@ export const Dashboard = () => {
       if (res?.data?.unread) {
         setRoomUnreads(res.data.unread);
       }
-    } catch (err) {
+    } catch {
       // Ignore
     }
   };
@@ -62,11 +62,11 @@ export const Dashboard = () => {
   const fetchAnnouncements = async () => {
     try {
       setLoadingAnnouncements(true);
-      const res = await announcementService.getAnnouncements();
+      const res = await announcementService.getAnnouncements({ limit: 10 });
       if (res?.data?.announcements) {
         setAnnouncements(res.data.announcements);
       }
-    } catch (err) {
+    } catch {
       // Ignore
     } finally {
       setLoadingAnnouncements(false);
@@ -76,11 +76,11 @@ export const Dashboard = () => {
   const fetchPolls = async () => {
     try {
       setLoadingPolls(true);
-      const res = await pollService.getPolls();
+      const res = await pollService.getPolls({ limit: 10 });
       if (res?.data?.polls) {
         setPolls(res.data.polls);
       }
-    } catch (err) {
+    } catch {
       // Ignore
     } finally {
       setLoadingPolls(false);
@@ -91,6 +91,7 @@ export const Dashboard = () => {
     const fetchRooms = async () => {
       try {
         setLoadingRooms(true);
+        setRoomsError('');
         const res = await getRooms();
         if (res?.data?.rooms) {
           setAccessibleRooms(res.data.rooms);
@@ -159,22 +160,22 @@ export const Dashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#07090e] text-slate-100 flex flex-col selection:bg-indigo-500/30 selection:text-indigo-200">
+    <CinematicBackground className="selection:bg-indigo-500/30 selection:text-indigo-200">
       
       {/* Top Authenticated Navigation Bar */}
-      <header className="sticky top-0 z-40 bg-[#080b12]/90 backdrop-blur-md border-b border-white/[0.08] shadow-md shadow-black/20">
+      <header className="sticky top-0 z-40 glass-panel-deep border-b border-white/[0.08] shadow-2xl shadow-black/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             
             {/* Logo */}
-            <Link to="/" className="flex items-center gap-3 group">
-              <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-br from-violet-600 via-indigo-600 to-cyan-500 p-[1px] shadow-md shadow-indigo-600/20">
-                <div className="w-full h-full bg-[#0b0f19] rounded-[11px] flex items-center justify-center">
-                  <Shield className="w-4 h-4 text-indigo-400" />
+            <Link to="/" className="flex items-center gap-3 group focus-ring rounded-xl">
+              <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-br from-violet-600 via-indigo-600 to-cyan-500 p-[1px] shadow-lg shadow-indigo-600/25">
+                <div className="w-full h-full bg-[#080d19] rounded-[11px] flex items-center justify-center">
+                  <Shield className="w-4 h-4 text-indigo-400 group-hover:scale-110 transition-transform" />
                 </div>
               </div>
               <div className="flex flex-col">
-                <span className="font-bold text-sm sm:text-base text-white tracking-tight">
+                <span className="font-bold text-sm sm:text-base text-white tracking-tight group-hover:text-indigo-200 transition-colors">
                   Prof. S.N. Bose
                 </span>
                 <span className="text-[10px] font-medium tracking-wider uppercase text-slate-400">
@@ -214,13 +215,12 @@ export const Dashboard = () => {
               )}
             </nav>
 
-
             {/* Right Action Menu: Health Status + Notifications + Anonymous Profile Menu */}
             <div className="flex items-center gap-3">
               {/* Search & Discovery Quick Link */}
               <Link
                 to="/search"
-                className="p-2 rounded-xl text-slate-300 hover:text-white bg-slate-900 border border-slate-700/80 hover:border-indigo-500/50 hover:bg-slate-800 transition-all shadow-sm"
+                className="p-2 rounded-xl text-slate-300 hover:text-white bg-slate-900/80 border border-white/[0.08] hover:border-indigo-500/50 hover:bg-slate-800 transition-all shadow-sm"
                 title="Search & Discovery"
               >
                 <Search className="w-4 h-4 text-indigo-400" />
@@ -230,43 +230,39 @@ export const Dashboard = () => {
               <NotificationDropdown />
 
               {/* API Heartbeat Pulse */}
-              <div
-                className={`hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-full text-[11px] font-mono border ${
-                  online
-                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-                    : 'bg-amber-500/10 border-amber-500/30 text-amber-400'
-                }`}
-                title="Backend API Connection"
-              >
-                <span className={`w-1.5 h-1.5 rounded-full ${online ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
-                <span>{online ? 'API Online' : 'Connecting'}</span>
-              </div>
+              <Badge variant={online ? 'emerald' : 'amber'} size="sm" dot={true} className="hidden sm:inline-flex">
+                {online ? 'API Online' : 'Connecting'}
+              </Badge>
 
               {/* Profile / Account Menu */}
               <div className="relative">
                 <button
                   onClick={() => setMenuOpen(!menuOpen)}
-                  className="flex items-center gap-2.5 p-1.5 pr-3 rounded-xl bg-slate-900/90 border border-slate-700/80 hover:border-indigo-500/50 transition-all text-left group max-w-[200px]"
+                  className="flex items-center gap-2.5 p-1.5 pr-3 rounded-xl bg-slate-900/90 border border-white/[0.1] hover:border-indigo-500/50 transition-all text-left group max-w-[200px]"
                 >
-                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center text-lg flex-shrink-0 shadow-sm">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-lg flex-shrink-0 group-hover:scale-105 transition-transform">
                     {getAvatarDisplay(user?.anonymousAvatar)}
                   </div>
-                  <div className="hidden sm:block text-left min-w-0 flex-1">
-                    <div className="text-xs font-bold text-white group-hover:text-indigo-300 transition-colors truncate">
-                      {user?.anonymousName || 'Anonymous Student'}
-                    </div>
-                    <div className="text-[10px] font-mono text-cyan-300 truncate">
+                  <div className="hidden sm:flex flex-col min-w-0">
+                    <span className="text-xs font-bold text-white truncate group-hover:text-indigo-200">
+                      {user?.anonymousName || 'Anonymous'}
+                    </span>
+                    <span className="text-[10px] font-mono text-slate-400">
                       {user?.year}
-                    </div>
+                    </span>
                   </div>
-                  <ChevronDown className={`w-4 h-4 text-slate-400 flex-shrink-0 transition-transform ${menuOpen ? 'rotate-180' : ''}`} />
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 group-hover:text-white transition-transform" />
                 </button>
 
                 {/* Dropdown Menu */}
                 {menuOpen && (
-                  <div className="absolute right-0 mt-2 w-72 bg-[#0c101d] border border-white/[0.1] rounded-2xl shadow-2xl p-4 space-y-4 z-50 animate-in fade-in slide-in-from-top-2">
+                  <GlassCard
+                    variant="elevated"
+                    glow={true}
+                    className="absolute right-0 mt-2 w-72 p-4 shadow-2xl space-y-3 z-50 animate-in fade-in slide-in-from-top-2 duration-150"
+                  >
                     
-                    {/* Header in menu */}
+                    {/* User Identity Info */}
                     <div className="border-b border-white/[0.08] pb-3 space-y-1">
                       <div className="flex items-center gap-2.5 min-w-0">
                         <div className="w-10 h-10 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-2xl flex-shrink-0">
@@ -296,7 +292,7 @@ export const Dashboard = () => {
                           Verified Resident
                         </span>
                       </div>
-                      <div className="p-2.5 rounded-xl bg-slate-900 border border-white/[0.05] text-[11px] text-slate-400 leading-relaxed">
+                      <div className="p-2.5 rounded-xl bg-slate-900/90 border border-white/[0.06] text-[11px] text-slate-400 leading-relaxed">
                         🛡️ Your real name is not displayed to other students in the community.
                       </div>
                     </div>
@@ -375,7 +371,7 @@ export const Dashboard = () => {
                       </button>
                     </div>
 
-                  </div>
+                  </GlassCard>
                 )}
               </div>
 
@@ -388,72 +384,68 @@ export const Dashboard = () => {
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-10">
         
         {/* Welcome Hub Banner */}
-        <div className="relative rounded-3xl p-[1px] bg-gradient-to-r from-violet-600/40 via-indigo-500/30 to-cyan-500/40 shadow-2xl">
-          <div className="bg-[#0b0f1a]/95 backdrop-blur-xl rounded-3xl p-6 sm:p-10 space-y-4">
-            
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-              <div className="space-y-2 min-w-0 flex-1">
-                <span className="text-xs uppercase font-mono tracking-wider text-slate-400">
-                  Hostel Community Hub
+        <GlassCard variant="elevated" glow={true} className="p-5 sm:p-8 md:p-10 space-y-4 animate-fade-in">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="space-y-2 min-w-0 flex-1">
+              <span className="text-xs uppercase font-mono tracking-wider text-slate-400">
+                Hostel Community Hub
+              </span>
+              <h1 className="text-xl sm:text-3xl md:text-4xl font-extrabold text-white tracking-tight flex flex-wrap items-center gap-2 sm:gap-3 break-words">
+                <span className="min-w-0 max-w-full">
+                  Welcome back, <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-indigo-100 to-cyan-200">{user?.anonymousName || 'Hostel Resident'}</span>
                 </span>
-                <h1 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight flex flex-wrap items-center gap-2.5 sm:gap-3">
-                  <span className="min-w-0 truncate max-w-full">
-                    Welcome back, <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-indigo-100 to-cyan-200">{user?.anonymousName || 'Hostel Resident'}</span>
-                  </span>
-                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-slate-800/80 border border-indigo-500/20 flex items-center justify-center text-xl sm:text-2xl flex-shrink-0 shadow-sm">
-                    {getAvatarDisplay(user?.anonymousAvatar)}
-                  </div>
-                </h1>
-                <p className="text-sm text-slate-300">
-                  Prof. S.N. Bose Boys Hostel •{' '}
-                  <strong className="text-white font-semibold">{user?.year} Resident</strong>
-                </p>
-              </div>
-
-              {/* Identity Snapshot Card */}
-              <div className="w-full sm:w-auto min-w-0 max-w-full sm:max-w-xs md:max-w-sm flex items-center gap-3.5 bg-slate-900/90 border border-indigo-500/30 px-4 py-3 sm:px-5 sm:py-3.5 rounded-2xl shadow-inner flex-shrink-0">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center text-2xl flex-shrink-0 shadow-md">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-slate-800/80 border border-indigo-500/20 flex items-center justify-center text-lg sm:text-2xl flex-shrink-0 shadow-sm">
                   {getAvatarDisplay(user?.anonymousAvatar)}
                 </div>
-                <div className="min-w-0 flex-1 text-left space-y-1">
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <span className="text-xs font-bold text-white truncate" title={user?.anonymousName}>
-                      {user?.anonymousName}
-                    </span>
-                    <span className="text-emerald-400 font-mono text-[10px] flex-shrink-0">
-                      ● Active
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="inline-block text-[11px] text-cyan-300 font-mono px-1.5 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/20 flex-shrink-0">
-                      {user?.year}
-                    </span>
-                    <span className="text-[10px] text-slate-400 truncate">
-                      Community Identity
-                    </span>
-                  </div>
-                  <div>
-                    <Link
-                      to="/profile"
-                      className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-400 hover:text-indigo-300 transition-colors pt-0.5"
-                    >
-                      <span>Edit Profile</span>
-                      <ArrowRight className="w-3 h-3" />
-                    </Link>
-                  </div>
+              </h1>
+              <p className="text-xs sm:text-sm text-slate-300">
+                Prof. S.N. Bose Boys Hostel •{' '}
+                <strong className="text-white font-semibold">{user?.year} Resident</strong>
+              </p>
+            </div>
+
+            {/* Identity Snapshot Card */}
+            <div className="w-full sm:w-auto min-w-0 max-w-full sm:max-w-xs md:max-w-sm flex items-center gap-3.5 bg-slate-900/90 border border-indigo-500/30 px-4 py-3 sm:px-5 sm:py-3.5 rounded-2xl shadow-inner flex-shrink-0">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center text-2xl flex-shrink-0 shadow-md">
+                {getAvatarDisplay(user?.anonymousAvatar)}
+              </div>
+              <div className="min-w-0 flex-1 text-left space-y-1">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="text-xs font-bold text-white truncate" title={user?.anonymousName}>
+                    {user?.anonymousName}
+                  </span>
+                  <span className="text-emerald-400 font-mono text-[10px] flex-shrink-0">
+                    ● Active
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="inline-block text-[11px] text-cyan-300 font-mono px-1.5 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/20 flex-shrink-0">
+                    {user?.year}
+                  </span>
+                  <span className="text-[10px] text-slate-400 truncate">
+                    Community Identity
+                  </span>
+                </div>
+                <div>
+                  <Link
+                    to="/profile"
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-400 hover:text-indigo-300 transition-colors pt-0.5"
+                  >
+                    <span>Edit Profile</span>
+                    <ArrowRight className="w-3 h-3" />
+                  </Link>
                 </div>
               </div>
             </div>
-
-            <div className="pt-3 border-t border-white/[0.06] flex items-center gap-2 text-xs text-slate-400">
-              <Sparkles className="w-4 h-4 text-indigo-400 flex-shrink-0" />
-              <span>
-                Task 6 Active: Profile and anonymous identity management enabled!
-              </span>
-            </div>
-
           </div>
-        </div>
+
+          <div className="pt-3 border-t border-white/[0.06] flex items-center gap-2 text-xs text-slate-400">
+            <Sparkles className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+            <span>
+              Profile and anonymous identity protection active. Real names remain hidden to peers.
+            </span>
+          </div>
+        </GlassCard>
 
         {/* Admin Center Callout (Only visible for admin role) */}
         {user?.role === 'admin' && (
@@ -465,9 +457,9 @@ export const Dashboard = () => {
               <div>
                 <h3 className="text-sm font-bold text-white flex items-center gap-2">
                   <span>Hostel Administration Center</span>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-semibold">
+                  <Badge variant="amber" size="sm">
                     Admin Clearance
-                  </span>
+                  </Badge>
                 </h3>
                 <p className="text-xs text-slate-300">
                   Manage announcements, community polls, message moderation, and hostel safety.
@@ -477,7 +469,7 @@ export const Dashboard = () => {
             <div className="flex items-center gap-2.5">
               <Link
                 to="/admin/announcements"
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition-all shadow-md shadow-indigo-600/20 flex-shrink-0"
+                className="btn-cinema-primary text-xs py-2 px-3.5 shadow-md flex-shrink-0"
               >
                 <Megaphone className="w-3.5 h-3.5" />
                 <span>Announcements & Polls</span>
@@ -554,7 +546,7 @@ export const Dashboard = () => {
         )}
 
         {/* Quick Search & Discovery Card */}
-        <div className="p-5 rounded-3xl bg-gradient-to-r from-indigo-950/40 via-slate-900/80 to-cyan-950/30 border border-indigo-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl">
+        <GlassCard variant="default" glow={true} className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3.5">
             <div className="w-11 h-11 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-400 flex-shrink-0 shadow-md">
               <Search className="w-5 h-5" />
@@ -568,12 +560,12 @@ export const Dashboard = () => {
           </div>
           <Link
             to="/search"
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md shadow-indigo-600/30 transition-all flex-shrink-0"
+            className="btn-cinema-primary text-xs py-2.5 px-4 flex-shrink-0"
           >
             <span>Open Search Hub</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </Link>
-        </div>
+        </GlassCard>
 
         {/* Accessible Channels Section */}
         <div id="rooms" className="space-y-6">
@@ -588,16 +580,16 @@ export const Dashboard = () => {
                 Authorized rooms for your academic year. Enter a channel to chat anonymously in real time.
               </p>
             </div>
-            <span className="text-xs font-mono text-indigo-400">
+            <Badge variant="indigo" size="sm">
               {accessibleRooms.length} Channels Authorized
-            </span>
+            </Badge>
           </div>
 
           {/* Loading state */}
           {loadingRooms && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {[1, 2].map((i) => (
-                <div key={i} className="h-48 rounded-2xl bg-slate-900/50 border border-slate-800 animate-pulse" />
+                <div key={i} className="h-48 rounded-2xl bg-slate-900/50 border border-white/[0.06] animate-pulse" />
               ))}
             </div>
           )}
@@ -618,10 +610,13 @@ export const Dashboard = () => {
                   roomUnreads[room._id] ?? roomUnreads[room.slug] ?? roomUnreads[room.name] ?? 0;
 
                 return (
-                  <div
+                  <GlassCard
                     key={room._id}
+                    variant="interactive"
+                    glow={true}
+                    hoverLift={true}
                     onClick={() => navigate(`/community/${room.slug}`)}
-                    className="group relative cursor-pointer rounded-2xl p-6 sm:p-7 bg-slate-900/50 hover:bg-slate-900/90 border border-white/[0.09] hover:border-indigo-500/50 transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:shadow-indigo-950/40 flex flex-col justify-between"
+                    className="group relative cursor-pointer p-5 sm:p-7 flex flex-col justify-between"
                   >
                     {/* Top Accent Gradient Bar */}
                     <div
@@ -637,9 +632,9 @@ export const Dashboard = () => {
                           <div
                             className={`w-12 h-12 rounded-xl bg-gradient-to-br ${
                               isGlobal ? 'from-blue-600 to-cyan-600' : 'from-violet-600 to-indigo-600'
-                            } p-[1px] flex items-center justify-center flex-shrink-0`}
+                            } p-[1px] flex items-center justify-center flex-shrink-0 shadow-md`}
                           >
-                            <div className="w-full h-full bg-[#0a0f1d] rounded-[11px] flex items-center justify-center">
+                            <div className="w-full h-full bg-[#080d19] rounded-[11px] flex items-center justify-center">
                               {isGlobal ? (
                                 <Globe className="w-6 h-6 text-cyan-400 group-hover:scale-110 transition-transform" />
                               ) : (
@@ -648,36 +643,28 @@ export const Dashboard = () => {
                             </div>
                           </div>
                           <div>
-                            <h3 className="text-lg font-bold text-white group-hover:text-indigo-300 transition-colors">
+                            <h3 className="text-base sm:text-lg font-bold text-white group-hover:text-indigo-300 transition-colors">
                               {room.name}
                             </h3>
-                            <span
-                              className={`text-[11px] font-medium px-2 py-0.5 rounded-full border ${
-                                isGlobal
-                                  ? 'bg-cyan-500/10 text-cyan-300 border-cyan-500/20'
-                                  : 'bg-indigo-500/10 text-indigo-300 border-indigo-500/20'
-                              }`}
-                            >
+                            <Badge variant={isGlobal ? 'cyan' : 'indigo'} size="sm">
                               {isGlobal ? 'Everyone in Prof. S.N. Bose Boys Hostel' : `Private room for ${room.allowedYear} students`}
-                            </span>
+                            </Badge>
                           </div>
                         </div>
 
                         {unreadCount > 0 ? (
-                          <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-rose-300 bg-rose-500/15 border border-rose-500/30 px-2.5 py-1 rounded-full shadow-sm animate-pulse">
-                            <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
-                            <span>{unreadCount} {unreadCount === 1 ? 'new message' : 'new messages'}</span>
-                          </span>
+                          <Badge variant="rose" size="sm" dot={true}>
+                            {unreadCount} {unreadCount === 1 ? 'new' : 'new'}
+                          </Badge>
                         ) : (
-                          <span className="hidden sm:inline-flex items-center gap-1.5 text-[11px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                            <span>Live Chat</span>
-                          </span>
+                          <Badge variant="emerald" size="sm" dot={true} className="hidden sm:inline-flex">
+                            Live Chat
+                          </Badge>
                         )}
                       </div>
 
                       {/* Description */}
-                      <p className="text-sm text-slate-300 leading-relaxed min-h-[44px]">
+                      <p className="text-xs sm:text-sm text-slate-300 leading-relaxed min-h-[44px]">
                         {room.description}
                       </p>
                     </div>
@@ -694,14 +681,14 @@ export const Dashboard = () => {
                         <ArrowRight className="w-4 h-4" />
                       </span>
                     </div>
-                  </div>
+                  </GlassCard>
                 );
               })}
             </div>
           )}
 
           {/* Academic Year Enforcement Informational Card */}
-          <div className="rounded-2xl bg-slate-900/40 border border-white/[0.05] p-5 sm:p-6 space-y-3 text-xs text-slate-300">
+          <GlassCard variant="default" className="p-5 sm:p-6 space-y-3 text-xs text-slate-300">
             <div className="flex items-center gap-2 font-semibold text-white">
               <Shield className="w-4 h-4 text-cyan-400" />
               <span>Hostel Year Partitioning Architecture</span>
@@ -714,7 +701,7 @@ export const Dashboard = () => {
               <span className="text-slate-600">|</span>
               <span>● Anonymous Identity: <strong className="text-cyan-300">{user?.anonymousName}</strong></span>
             </div>
-          </div>
+          </GlassCard>
 
         </div>
 
@@ -722,8 +709,8 @@ export const Dashboard = () => {
 
       {/* Identity Card Modal */}
       {identityModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="relative w-full max-w-md bg-[#0c101d] border border-white/[0.1] rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+          <GlassCard variant="elevated" glow={true} className="relative w-full max-w-md p-5 sm:p-7 space-y-6 max-h-[90vh] overflow-y-auto animate-modal-enter">
             <div className="flex items-center justify-between border-b border-white/[0.08] pb-4">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-10 h-10 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-2xl flex-shrink-0">
@@ -736,7 +723,8 @@ export const Dashboard = () => {
               </div>
               <button
                 onClick={() => setIdentityModalOpen(false)}
-                className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors flex-shrink-0"
+                aria-label="Close modal"
+                className="min-h-[44px] min-w-[44px] p-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors flex items-center justify-center flex-shrink-0 cursor-pointer"
               >
                 ✕
               </button>
@@ -751,9 +739,9 @@ export const Dashboard = () => {
                   {user?.anonymousName}
                 </h4>
                 <div className="pt-0.5">
-                  <span className="inline-block text-xs font-mono text-cyan-300 px-2.5 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/20">
+                  <Badge variant="cyan" size="sm">
                     {user?.year} Resident
-                  </span>
+                  </Badge>
                 </div>
               </div>
               <p className="text-xs text-slate-300 italic">
@@ -764,24 +752,24 @@ export const Dashboard = () => {
             <div className="flex justify-end">
               <button
                 onClick={() => setIdentityModalOpen(false)}
-                className="px-6 py-2 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 transition-colors shadow-md shadow-indigo-600/30"
+                className="btn-cinema-primary text-xs py-2 px-6"
               >
                 Close
               </button>
             </div>
-          </div>
+          </GlassCard>
         </div>
       )}
 
       {/* Authenticated Footer */}
-      <footer className="border-t border-white/[0.06] bg-[#070a12] py-6 text-center text-xs text-slate-400">
+      <footer className="border-t border-white/[0.06] bg-[#05080f] py-6 text-center text-xs text-slate-400">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span>Prof. S.N. Bose Boys Hostel Community • Step 3: Real-Time Chat Active</span>
+          <span>Prof. S.N. Bose Boys Hostel Community • Live Platform Active</span>
           <span className="font-mono text-slate-400">Connected as {user?.anonymousName}</span>
         </div>
       </footer>
 
-    </div>
+    </CinematicBackground>
   );
 };
 

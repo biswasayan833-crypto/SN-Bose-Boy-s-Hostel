@@ -14,10 +14,10 @@ import {
   Search,
 } from 'lucide-react';
 import { useHealthCheck } from '../hooks/useHealthCheck';
-
 import { useAuth } from '../context/AuthContext';
 import NotificationDropdown from './NotificationDropdown';
 import { getAvatarDisplay } from './AvatarPicker';
+import { Badge } from './ui/Badge';
 
 export const Navbar = () => {
   const [scrolled, setScrolled] = useState(false);
@@ -38,90 +38,93 @@ export const Navbar = () => {
     <header
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         scrolled
-          ? 'bg-[#080b12]/85 backdrop-blur-md border-b border-white/[0.08] shadow-lg shadow-black/20 py-3'
+          ? 'glass-panel-deep border-b border-white/[0.08] shadow-2xl shadow-black/50 py-3'
           : 'bg-transparent py-5'
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between">
           {/* Logo & Hostel Name */}
-          <Link to="/" className="flex items-center gap-3 group">
-            <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-violet-600 via-indigo-600 to-cyan-500 p-[1px] shadow-md shadow-indigo-500/20 group-hover:shadow-indigo-500/40 transition-shadow">
-              <div className="w-full h-full bg-[#0b0f19] rounded-[11px] flex items-center justify-center">
-                <Shield className="w-5 h-5 text-indigo-400 group-hover:scale-110 transition-transform duration-300" />
+          <Link to="/" className="flex items-center gap-2.5 sm:gap-3 group focus-ring rounded-xl min-w-0">
+            <div className="relative flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-violet-600 via-indigo-600 to-cyan-500 p-[1px] shadow-lg shadow-indigo-500/25 group-hover:shadow-indigo-500/50 transition-all duration-300 flex-shrink-0">
+              <div className="w-full h-full bg-[#070a12] rounded-[11px] flex items-center justify-center">
+                <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-400 group-hover:scale-110 transition-transform duration-300" />
               </div>
               <span className="absolute -bottom-1 -right-1 flex h-3 w-3">
-                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${online ? 'bg-emerald-400' : 'bg-amber-400'}`}></span>
-                <span className={`relative inline-flex rounded-full h-3 w-3 ${online ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
+                <span
+                  className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                    online ? 'bg-emerald-400' : 'bg-amber-400'
+                  }`}
+                />
+                <span
+                  className={`relative inline-flex rounded-full h-3 w-3 ${
+                    online ? 'bg-emerald-500' : 'bg-amber-500'
+                  }`}
+                />
               </span>
             </div>
 
-            <div className="flex flex-col">
-              <span className="font-bold text-base sm:text-lg tracking-tight text-white group-hover:text-indigo-200 transition-colors">
+            <div className="flex flex-col min-w-0">
+              <span className="font-bold text-sm sm:text-base md:text-lg tracking-tight text-white group-hover:text-indigo-200 transition-colors truncate">
                 Prof. S.N. Bose
               </span>
-              <span className="text-[11px] font-medium tracking-wider uppercase text-slate-400">
+              <span className="text-[10px] sm:text-[11px] font-medium tracking-wider uppercase text-slate-400 truncate">
                 Boys Hostel Community
               </span>
             </div>
           </Link>
 
           {/* Desktop Navigation Links */}
-          <nav className="hidden md:flex items-center gap-8">
+          <nav className="hidden md:flex items-center gap-1.5 p-1 rounded-xl bg-white/[0.03] border border-white/[0.06]">
             <a
               href="#home"
-              className="text-sm font-medium text-slate-300 hover:text-white transition-colors"
+              className="text-xs font-semibold text-slate-300 hover:text-white px-3.5 py-1.5 rounded-lg hover:bg-white/[0.05] transition-all"
             >
               Home
             </a>
             <a
               href="#community"
-              className="text-sm font-medium text-slate-300 hover:text-white transition-colors"
+              className="text-xs font-semibold text-slate-300 hover:text-white px-3.5 py-1.5 rounded-lg hover:bg-white/[0.05] transition-all"
             >
               Community
             </a>
             <a
               href="#identity"
-              className="text-sm font-medium text-slate-300 hover:text-white transition-colors"
+              className="text-xs font-semibold text-slate-300 hover:text-white px-3.5 py-1.5 rounded-lg hover:bg-white/[0.05] transition-all"
             >
               Identity
             </a>
             <a
               href="#features"
-              className="text-sm font-medium text-slate-300 hover:text-white transition-colors"
+              className="text-xs font-semibold text-slate-300 hover:text-white px-3.5 py-1.5 rounded-lg hover:bg-white/[0.05] transition-all"
             >
               Features
             </a>
             <a
               href="#about"
-              className="text-sm font-medium text-slate-300 hover:text-white transition-colors"
+              className="text-xs font-semibold text-slate-300 hover:text-white px-3.5 py-1.5 rounded-lg hover:bg-white/[0.05] transition-all"
             >
               About
             </a>
           </nav>
 
           {/* Action CTAs & Status Pill */}
-          <div className="hidden md:flex items-center gap-4">
+          <div className="hidden md:flex items-center gap-3">
             {/* Live Backend Connection Indicator */}
-            <div
-              className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-mono border transition-colors ${
-                online
-                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-                  : loading
-                  ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
-                  : 'bg-rose-500/10 border-rose-500/30 text-rose-400'
-              }`}
+            <Badge
+              variant={online ? 'emerald' : loading ? 'amber' : 'rose'}
+              size="sm"
+              dot={true}
               title={online ? 'Backend API connected and operating' : 'Connecting to API'}
             >
-              <span className={`w-2 h-2 rounded-full ${online ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
-              <span>{online ? 'API Online' : loading ? 'Checking...' : 'Offline'}</span>
-            </div>
+              {online ? 'API Online' : loading ? 'Checking...' : 'Offline'}
+            </Badge>
 
             {isAuthenticated ? (
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2.5">
                 <Link
                   to="/search"
-                  className="p-2 rounded-xl text-slate-300 hover:text-white bg-slate-900 border border-slate-700/80 hover:border-indigo-500/50 hover:bg-slate-800 transition-all shadow-sm"
+                  className="p-2 rounded-xl text-slate-300 hover:text-white bg-slate-900/80 border border-white/[0.08] hover:border-indigo-500/50 hover:bg-slate-800 transition-all shadow-sm"
                   title="Search & Discovery"
                 >
                   <Search className="w-4 h-4 text-indigo-400" />
@@ -152,16 +155,16 @@ export const Navbar = () => {
 
                 <Link
                   to="/dashboard"
-                  className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-semibold text-white bg-slate-900 border border-slate-700/80 hover:border-indigo-500/50 hover:bg-slate-800 transition-all shadow-md max-w-[200px]"
+                  className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold text-white bg-slate-900/90 border border-white/[0.1] hover:border-indigo-500/60 hover:bg-slate-800/90 transition-all shadow-md max-w-[200px]"
                 >
-                  <span className="text-base flex-shrink-0">{getAvatarDisplay(user?.anonymousAvatar)}</span>
-                  <span className="text-xs truncate">{user?.anonymousName}</span>
-                  <LayoutDashboard className="w-4 h-4 text-indigo-400 ml-1 flex-shrink-0" />
+                  <span className="text-sm flex-shrink-0">{getAvatarDisplay(user?.anonymousAvatar)}</span>
+                  <span className="truncate">{user?.anonymousName}</span>
+                  <LayoutDashboard className="w-3.5 h-3.5 text-indigo-400 ml-0.5 flex-shrink-0" />
                 </Link>
 
                 <Link
                   to="/profile"
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:text-white bg-slate-900 border border-slate-700/80 hover:border-indigo-500/50 hover:bg-slate-800 transition-all shadow-sm"
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-slate-300 hover:text-white bg-slate-900/80 border border-white/[0.08] hover:border-indigo-500/50 hover:bg-slate-800 transition-all shadow-sm"
                   title="Profile & Identity Management"
                 >
                   <User className="w-3.5 h-3.5 text-indigo-400" />
@@ -180,136 +183,138 @@ export const Navbar = () => {
                 </button>
               </div>
             ) : (
-
-              <>
+              <div className="flex items-center gap-2">
                 <Link
                   to="/login"
-                  className="text-sm font-medium text-slate-300 hover:text-white px-3 py-2 transition-colors flex items-center gap-1.5"
+                  className="text-xs font-semibold text-slate-300 hover:text-white px-3.5 py-2 transition-colors flex items-center gap-1.5 rounded-xl hover:bg-white/[0.05]"
                 >
                   <Lock className="w-3.5 h-3.5 text-indigo-400" />
-                  Login
+                  <span>Login</span>
                 </Link>
 
                 <Link
                   to="/register"
-                  className="relative inline-flex items-center justify-center p-0.5 overflow-hidden text-sm font-semibold text-white rounded-xl group bg-gradient-to-r from-violet-600 via-indigo-600 to-cyan-500 hover:from-violet-500 hover:to-cyan-400 shadow-md shadow-indigo-600/20 hover:shadow-indigo-600/40 transition-all active:scale-[0.98]"
+                  className="btn-cinema-primary text-xs py-2 px-4 shadow-lg shadow-indigo-600/25"
                 >
-                  <span className="relative px-4 py-2 transition-all ease-in duration-150 bg-[#0c101d] rounded-[10px] group-hover:bg-opacity-0 flex items-center gap-2">
-                    <span>Join Community</span>
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-                  </span>
+                  <span>Join Community</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
                 </Link>
-              </>
+              </div>
             )}
           </div>
 
           {/* Mobile Menu Toggle Button */}
-          <div className="flex items-center gap-3 md:hidden">
+          <div className="flex items-center gap-2 md:hidden">
             {isAuthenticated && <NotificationDropdown />}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 hover:text-white focus:outline-none"
+              className="min-h-[44px] min-w-[44px] p-2.5 rounded-xl bg-slate-900/90 border border-white/[0.08] text-slate-300 hover:text-white focus-ring active:scale-95 transition-transform flex items-center justify-center cursor-pointer"
               aria-label="Toggle Menu"
             >
-              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
           </div>
         </div>
 
-        {/* Mobile Dropdown Menu */}
+        {/* Mobile Dropdown Menu with Smooth Animation */}
         {mobileMenuOpen && (
-          <div className="md:hidden mt-4 pt-4 pb-6 px-4 bg-[#0d1222] border border-slate-800 rounded-2xl shadow-2xl flex flex-col gap-4 animate-in fade-in slide-in-from-top-4 duration-200">
-            <a
-              href="#home"
-              onClick={() => setMobileMenuOpen(false)}
-              className="text-sm font-medium text-slate-300 hover:text-white py-1"
-            >
-              Home
-            </a>
-            <a
-              href="#community"
-              onClick={() => setMobileMenuOpen(false)}
-              className="text-sm font-medium text-slate-300 hover:text-white py-1"
-            >
-              Community
-            </a>
-            <a
-              href="#identity"
-              onClick={() => setMobileMenuOpen(false)}
-              className="text-sm font-medium text-slate-300 hover:text-white py-1"
-            >
-              Identity
-            </a>
-            <a
-              href="#features"
-              onClick={() => setMobileMenuOpen(false)}
-              className="text-sm font-medium text-slate-300 hover:text-white py-1"
-            >
-              Features
-            </a>
-            <a
-              href="#about"
-              onClick={() => setMobileMenuOpen(false)}
-              className="text-sm font-medium text-slate-300 hover:text-white py-1"
-            >
-              About
-            </a>
+          <div className="md:hidden mt-3 p-4 glass-panel-elevated rounded-2xl shadow-2xl flex flex-col gap-3 animate-slide-down">
+            <nav className="flex flex-col gap-1 pb-2 border-b border-white/[0.08]">
+              <a
+                href="#home"
+                onClick={() => setMobileMenuOpen(false)}
+                className="text-xs font-semibold text-slate-300 hover:text-white min-h-[44px] px-3 rounded-xl hover:bg-white/[0.04] flex items-center"
+              >
+                Home
+              </a>
+              <a
+                href="#community"
+                onClick={() => setMobileMenuOpen(false)}
+                className="text-xs font-semibold text-slate-300 hover:text-white min-h-[44px] px-3 rounded-xl hover:bg-white/[0.04] flex items-center"
+              >
+                Community
+              </a>
+              <a
+                href="#identity"
+                onClick={() => setMobileMenuOpen(false)}
+                className="text-xs font-semibold text-slate-300 hover:text-white min-h-[44px] px-3 rounded-xl hover:bg-white/[0.04] flex items-center"
+              >
+                Identity
+              </a>
+              <a
+                href="#features"
+                onClick={() => setMobileMenuOpen(false)}
+                className="text-xs font-semibold text-slate-300 hover:text-white min-h-[44px] px-3 rounded-xl hover:bg-white/[0.04] flex items-center"
+              >
+                Features
+              </a>
+              <a
+                href="#about"
+                onClick={() => setMobileMenuOpen(false)}
+                className="text-xs font-semibold text-slate-300 hover:text-white min-h-[44px] px-3 rounded-xl hover:bg-white/[0.04] flex items-center"
+              >
+                About
+              </a>
+            </nav>
 
-            <div className="pt-2 border-t border-slate-800 flex items-center justify-between">
-              <span className="text-xs text-slate-400">Backend Status:</span>
-              <span className={`text-xs font-mono font-medium ${online ? 'text-emerald-400' : 'text-amber-400'}`}>
-                {online ? '● Online' : '○ Standby'}
-              </span>
+            <div className="flex items-center justify-between py-1 px-1">
+              <span className="text-[11px] text-slate-400">Backend Status</span>
+              <Badge variant={online ? 'emerald' : 'amber'} size="sm" dot={true}>
+                {online ? 'Online' : 'Standby'}
+              </Badge>
             </div>
 
-            <div className="flex flex-col gap-2 pt-2">
+            <div className="flex flex-col gap-2 pt-1">
               {isAuthenticated ? (
                 <>
                   {user?.role === 'admin' && (
-                    <>
+                    <div className="grid grid-cols-2 gap-2">
                       <Link
                         to="/admin/reports"
                         onClick={() => setMobileMenuOpen(false)}
-                        className="w-full py-2.5 rounded-xl text-sm font-semibold text-amber-200 bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 transition-colors flex items-center justify-center gap-2"
+                        className="min-h-[44px] py-2 px-3 rounded-xl text-xs font-semibold text-amber-300 bg-amber-500/10 border border-amber-500/30 text-center flex items-center justify-center gap-1.5"
                       >
-                        <ShieldAlert className="w-4 h-4 text-amber-400" />
-                        <span>Moderation Hub</span>
+                        <ShieldAlert className="w-3.5 h-3.5" />
+                        <span>Moderation</span>
                       </Link>
                       <Link
                         to="/admin/announcements"
                         onClick={() => setMobileMenuOpen(false)}
-                        className="w-full py-2.5 rounded-xl text-sm font-semibold text-indigo-200 bg-indigo-500/10 border border-indigo-500/30 hover:bg-indigo-500/20 transition-colors flex items-center justify-center gap-2"
+                        className="min-h-[44px] py-2 px-3 rounded-xl text-xs font-semibold text-indigo-300 bg-indigo-500/10 border border-indigo-500/30 text-center flex items-center justify-center gap-1.5"
                       >
-                        <Megaphone className="w-4 h-4 text-indigo-400" />
-                        <span>Announcements & Polls</span>
+                        <Megaphone className="w-3.5 h-3.5" />
+                        <span>Notices</span>
                       </Link>
-                    </>
+                    </div>
                   )}
+
                   <Link
                     to="/dashboard"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="w-full py-2.5 rounded-xl text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 transition-colors flex items-center justify-center gap-2"
+                    className="btn-cinema-primary text-xs min-h-[44px] py-2.5 w-full justify-center"
                   >
-                    <span className="truncate px-2">Dashboard ({user?.anonymousName})</span>
+                    <span>Dashboard ({user?.anonymousName})</span>
                   </Link>
 
-                  <Link
-                    to="/search"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="w-full py-2.5 rounded-xl text-sm font-semibold text-slate-200 bg-slate-800/80 hover:bg-slate-700 transition-colors flex items-center justify-center gap-2"
-                  >
-                    <Search className="w-4 h-4 text-indigo-400" />
-                    <span>Search & Discovery</span>
-                  </Link>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Link
+                      to="/search"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="min-h-[44px] py-2 px-3 rounded-xl text-xs font-semibold text-slate-200 bg-slate-800/80 border border-white/[0.08] flex items-center justify-center gap-1.5"
+                    >
+                      <Search className="w-3.5 h-3.5 text-indigo-400" />
+                      <span>Search</span>
+                    </Link>
 
-                  <Link
-                    to="/profile"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="w-full py-2.5 rounded-xl text-sm font-semibold text-slate-200 bg-slate-800/80 hover:bg-slate-700 transition-colors flex items-center justify-center gap-2"
-                  >
-                    <User className="w-4 h-4 text-indigo-400" />
-                    <span>My Profile & Settings</span>
-                  </Link>
+                    <Link
+                      to="/profile"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="min-h-[44px] py-2 px-3 rounded-xl text-xs font-semibold text-slate-200 bg-slate-800/80 border border-white/[0.08] flex items-center justify-center gap-1.5"
+                    >
+                      <User className="w-3.5 h-3.5 text-indigo-400" />
+                      <span>Profile</span>
+                    </Link>
+                  </div>
 
                   <button
                     onClick={async () => {
@@ -317,28 +322,29 @@ export const Navbar = () => {
                       await logout();
                       navigate('/login');
                     }}
-                    className="w-full py-2.5 rounded-xl text-sm font-semibold text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 transition-colors"
+                    className="w-full min-h-[44px] py-2 rounded-xl text-xs font-semibold text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 transition-colors flex items-center justify-center cursor-pointer"
                   >
                     Logout
                   </button>
                 </>
               ) : (
-                <>
+                <div className="flex flex-col gap-2">
                   <Link
                     to="/login"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="w-full py-2.5 rounded-xl text-sm font-semibold text-slate-200 bg-slate-800/80 hover:bg-slate-700 transition-colors text-center"
+                    className="w-full min-h-[44px] py-2.5 rounded-xl text-xs font-semibold text-slate-200 bg-slate-800/80 border border-white/[0.08] flex items-center justify-center text-center"
                   >
                     Login
                   </Link>
                   <Link
                     to="/register"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="w-full py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 transition-all shadow-md shadow-indigo-600/30 text-center"
+                    className="btn-cinema-primary text-xs min-h-[44px] py-2.5 w-full justify-center"
                   >
-                    Join Community
+                    <span>Join Community</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
                   </Link>
-                </>
+                </div>
               )}
             </div>
           </div>
