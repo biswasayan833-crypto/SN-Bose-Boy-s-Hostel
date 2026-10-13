@@ -94,13 +94,24 @@ export const sendMessage = async (req, res) => {
     try {
       const io = getIO();
       if (io) {
-        io.to(message.room).emit('new_message', message);
+        const peerMessage = {
+          ...message,
+          isOwn: false,
+          sender: {
+            anonymousName: message.sender.anonymousName,
+            anonymousAvatar: message.sender.anonymousAvatar,
+            year: message.sender.year,
+          },
+        };
+
+        io.to(`user:${req.user._id.toString()}`).emit('new_message', message);
+        io.to(message.room).except(`user:${req.user._id.toString()}`).emit('new_message', peerMessage);
+
         const roomDoc = await Room.findById(message.room);
         if (roomDoc) {
           const unreadPayload = {
             roomId: message.room,
             roomSlug: roomDoc.slug,
-            senderId: req.user._id.toString(),
           };
           if (roomDoc.allowedYear) {
             io.to(`year:${roomDoc.allowedYear}`).emit('room:unread_updated', unreadPayload);

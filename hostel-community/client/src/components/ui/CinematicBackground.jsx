@@ -1,5 +1,5 @@
 import React, { Suspense } from 'react';
-import { Hero3D } from '../3d';
+import Hero3D from '../3d/Hero3D';
 
 /**
  * Reusable CinematicBackground primitive for Task 10 Design System

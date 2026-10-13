@@ -19,6 +19,37 @@ export const JoinModal = ({ isOpen, onClose, selectedRoom }) => {
     setTimeout(() => setTestingPing(false), 400);
   };
 
+  const databaseStatusText = (() => {
+    const db = data?.database;
+    if (!db) return 'Unknown';
+
+    if (typeof db === 'string') {
+      const normalized = db.trim().toLowerCase();
+      if (normalized === 'connected' || normalized === 'online') return 'Connected';
+      if (normalized === 'disconnected' || normalized === 'offline') return 'Disconnected';
+      if (normalized === 'connecting') return 'Connecting';
+      return 'Unknown';
+    }
+
+    if (typeof db === 'object' && !Array.isArray(db)) {
+      if (typeof db.status === 'string' && db.status.trim()) {
+        const normalized = db.status.trim().toLowerCase();
+        if (normalized === 'connected' || normalized === 'online') return 'Connected';
+        if (normalized === 'disconnected' || normalized === 'offline') return 'Disconnected';
+        if (normalized === 'connecting') return 'Connecting';
+        if (typeof db.isOnline === 'boolean') {
+          return db.isOnline ? 'Connected' : 'Disconnected';
+        }
+        return 'Unknown';
+      }
+      if (typeof db.isOnline === 'boolean') {
+        return db.isOnline ? 'Connected' : 'Disconnected';
+      }
+    }
+
+    return 'Unknown';
+  })();
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-fade-in">
       <GlassCard variant="elevated" glow={true} className="relative w-full max-w-xl p-4 sm:p-7 md:p-8 space-y-5 sm:space-y-6 max-h-[90vh] overflow-y-auto animate-modal-enter">
@@ -91,7 +122,7 @@ export const JoinModal = ({ isOpen, onClose, selectedRoom }) => {
           <div className="p-3 sm:p-3.5 rounded-xl bg-black/40 border border-white/[0.06] font-mono text-xs space-y-1.5 text-slate-300">
             <div className="flex items-center justify-between">
               <span className="text-slate-400">Database Connection:</span>
-              <span className="text-emerald-400 font-semibold">{data?.database || 'Connected'}</span>
+              <span className="text-emerald-400 font-semibold">{databaseStatusText}</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-slate-400">Platform Environment:</span>

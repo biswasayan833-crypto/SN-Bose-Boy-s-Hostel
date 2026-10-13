@@ -46,12 +46,27 @@ export const postReaction = async (req, res) => {
       type,
     });
 
-    safeBroadcast(updatedMessage.room, 'reaction_updated', {
-      messageId: updatedMessage.id,
-      roomId: updatedMessage.room,
-      reactions: updatedMessage.reactions,
-      reactionCounts: updatedMessage.reactionCounts,
-    });
+    try {
+      const io = getIO();
+      if (io) {
+        io.to(`user:${req.user._id.toString()}`).emit('reaction_updated', {
+          messageId: updatedMessage.id,
+          roomId: updatedMessage.room,
+          reactions: updatedMessage.reactions,
+          reactionCounts: updatedMessage.reactionCounts,
+          userReactions: updatedMessage.userReactions,
+        });
+
+        io.to(updatedMessage.room).except(`user:${req.user._id.toString()}`).emit('reaction_updated', {
+          messageId: updatedMessage.id,
+          roomId: updatedMessage.room,
+          reactions: updatedMessage.reactions.map((r) => ({ type: r.type })),
+          reactionCounts: updatedMessage.reactionCounts,
+        });
+      }
+    } catch (broadcastErr) {
+      // Non-blocking
+    }
 
     return successResponse(res, 'Reaction added successfully', { message: updatedMessage });
   } catch (error) {
@@ -77,12 +92,27 @@ export const deleteReaction = async (req, res) => {
       type,
     });
 
-    safeBroadcast(updatedMessage.room, 'reaction_updated', {
-      messageId: updatedMessage.id,
-      roomId: updatedMessage.room,
-      reactions: updatedMessage.reactions,
-      reactionCounts: updatedMessage.reactionCounts,
-    });
+    try {
+      const io = getIO();
+      if (io) {
+        io.to(`user:${req.user._id.toString()}`).emit('reaction_updated', {
+          messageId: updatedMessage.id,
+          roomId: updatedMessage.room,
+          reactions: updatedMessage.reactions,
+          reactionCounts: updatedMessage.reactionCounts,
+          userReactions: updatedMessage.userReactions,
+        });
+
+        io.to(updatedMessage.room).except(`user:${req.user._id.toString()}`).emit('reaction_updated', {
+          messageId: updatedMessage.id,
+          roomId: updatedMessage.room,
+          reactions: updatedMessage.reactions.map((r) => ({ type: r.type })),
+          reactionCounts: updatedMessage.reactionCounts,
+        });
+      }
+    } catch (broadcastErr) {
+      // Non-blocking
+    }
 
     return successResponse(res, 'Reaction removed successfully', { message: updatedMessage });
   } catch (error) {
@@ -218,19 +248,28 @@ export const postAttachmentMessage = async (req, res) => {
       file,
     });
 
-    // Broadcast new message with attachment to all participants in the room
-    safeBroadcast(message.room, 'new_message', message);
-
-    // Broadcast unread notification to authorized clients
+    // Broadcast new message with attachment to participants
     try {
       const io = getIO();
       if (io) {
+        const peerMessage = {
+          ...message,
+          isOwn: false,
+          sender: {
+            anonymousName: message.sender.anonymousName,
+            anonymousAvatar: message.sender.anonymousAvatar,
+            year: message.sender.year,
+          },
+        };
+
+        io.to(`user:${req.user._id.toString()}`).emit('new_message', message);
+        io.to(message.room).except(`user:${req.user._id.toString()}`).emit('new_message', peerMessage);
+
         const roomDoc = await Room.findById(message.room);
         if (roomDoc) {
           const unreadPayload = {
             roomId: message.room,
             roomSlug: roomDoc.slug,
-            senderId: req.user._id.toString(),
           };
           if (roomDoc.allowedYear) {
             io.to(`year:${roomDoc.allowedYear}`).emit('room:unread_updated', unreadPayload);
@@ -239,7 +278,7 @@ export const postAttachmentMessage = async (req, res) => {
           }
         }
       }
-    } catch (unreadErr) {
+    } catch (broadcastErr) {
       // Non-blocking
     }
 

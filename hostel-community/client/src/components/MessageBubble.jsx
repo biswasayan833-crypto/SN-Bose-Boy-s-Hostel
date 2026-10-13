@@ -58,10 +58,11 @@ export const MessageBubble = ({
 
   const currentUserId = currentUser?.id || currentUser?._id;
   const isCurrentUser =
-    Boolean(currentUserId) &&
-    (message.sender?.id === currentUserId ||
-      message.sender?.id === String(currentUserId) ||
-      message.sender?._id === currentUserId);
+    message.isOwn === true ||
+    (Boolean(currentUserId) &&
+      (message.sender?.id === currentUserId ||
+        message.sender?.id === String(currentUserId) ||
+        message.sender?._id === currentUserId));
 
   const isDeleted = Boolean(message.isDeleted);
 
@@ -95,10 +96,21 @@ export const MessageBubble = ({
 
   // Check if current user has reacted with a given type
   const hasUserReacted = (type) => {
-    if (!currentUserId || !Array.isArray(message.reactions)) return false;
-    return message.reactions.some(
-      (r) => (r.user === currentUserId || r.user === String(currentUserId)) && r.type === type
-    );
+    if (Array.isArray(message.userReactions)) {
+      return message.userReactions.includes(type);
+    }
+    if (Array.isArray(message.reactions)) {
+      return message.reactions.some(
+        (r) =>
+          (r.reactedByMe === true ||
+            (Boolean(currentUserId) &&
+              (r.user === currentUserId ||
+                r.user === String(currentUserId) ||
+                r.user?._id === currentUserId))) &&
+          r.type === type
+      );
+    }
+    return false;
   };
 
   // Compute reaction count for a given type

@@ -139,11 +139,16 @@ export const ChatPage = () => {
     });
 
     const unsubscribeReactionUpdated = socketService.onReactionUpdated((payload) => {
-      const { messageId, reactions } = payload;
+      const { messageId, reactions, reactionCounts, userReactions } = payload;
       setMessages((prev) =>
         prev.map((m) => {
           if (m.id === messageId || m._id === messageId) {
-            return { ...m, reactions };
+            return {
+              ...m,
+              ...(reactions !== undefined ? { reactions } : {}),
+              ...(reactionCounts !== undefined ? { reactionCounts } : {}),
+              ...(userReactions !== undefined ? { userReactions } : {}),
+            };
           }
           return m;
         })
@@ -349,9 +354,17 @@ export const ChatPage = () => {
           prev.map((m) => {
             if (m.id !== messageId) return m;
             const newReactions = (m.reactions || []).filter(
-              (r) => !(r.user === currentUserId && r.type === type)
+              (r) => !((r.reactedByMe || r.user === currentUserId) && r.type === type)
             );
-            return { ...m, reactions: newReactions };
+            const newUserReactions = (m.userReactions || []).filter((t) => t !== type);
+            const newCounts = { ...(m.reactionCounts || {}) };
+            if (newCounts[type]) newCounts[type] = Math.max(0, newCounts[type] - 1);
+            return {
+              ...m,
+              reactions: newReactions,
+              userReactions: newUserReactions,
+              reactionCounts: newCounts,
+            };
           })
         );
         socketService.removeReaction(messageId, type, (ack) => {
@@ -365,11 +378,16 @@ export const ChatPage = () => {
           prev.map((m) => {
             if (m.id !== messageId) return m;
             const existing = (m.reactions || []).filter(
-              (r) => !(r.user === currentUserId && r.type === type)
+              (r) => !((r.reactedByMe || r.user === currentUserId) && r.type === type)
             );
+            const newUserReactions = [...new Set([...(m.userReactions || []), type])];
+            const newCounts = { ...(m.reactionCounts || {}) };
+            newCounts[type] = (newCounts[type] || 0) + 1;
             return {
               ...m,
-              reactions: [...existing, { user: currentUserId, type }],
+              reactions: [...existing, { type, reactedByMe: true }],
+              userReactions: newUserReactions,
+              reactionCounts: newCounts,
             };
           })
         );

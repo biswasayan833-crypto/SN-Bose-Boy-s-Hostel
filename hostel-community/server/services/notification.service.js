@@ -16,7 +16,6 @@ export const formatSafeNotification = (notif) => {
 
   if (actor && (actor.anonymousName || actor._id)) {
     safeActor = {
-      id: actor._id ? actor._id.toString() : actor.id || String(actor),
       anonymousName: actor.anonymousName || 'Anonymous Student',
       anonymousAvatar: actor.anonymousAvatar || '🎭',
       year: actor.year || 'Hostel Resident',

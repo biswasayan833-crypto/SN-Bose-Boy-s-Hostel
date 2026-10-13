@@ -199,17 +199,30 @@ export const initSocket = (httpServer) => {
           content,
         });
 
-        // Broadcast to all clients in the room (including sender)
-        io.to(roomId).emit('new_message', safeMessage);
+        // Create peer-safe message without exposing author's internal MongoDB ID
+        const peerMessage = {
+          ...safeMessage,
+          isOwn: false,
+          sender: {
+            anonymousName: safeMessage.sender.anonymousName,
+            anonymousAvatar: safeMessage.sender.anonymousAvatar,
+            year: safeMessage.sender.year,
+          },
+        };
 
-        // Broadcast unread update to authorized clients
+        // Broadcast peer-safe message to other clients in the room (excluding author sockets)
+        io.to(roomId).except(`user:${student._id.toString()}`).emit('new_message', peerMessage);
+
+        // Deliver owner message to all sockets belonging to author (including other open tabs)
+        io.to(`user:${student._id.toString()}`).emit('new_message', safeMessage);
+
+        // Broadcast unread update to authorized clients without leaking senderId
         try {
           const roomDoc = await Room.findById(roomId);
           if (roomDoc) {
             const unreadPayload = {
               roomId: safeMessage.room,
               roomSlug: roomDoc.slug,
-              senderId: student._id.toString(),
             };
             if (roomDoc.allowedYear) {
               io.to(`year:${roomDoc.allowedYear}`).emit('room:unread_updated', unreadPayload);
@@ -255,21 +268,32 @@ export const initSocket = (httpServer) => {
           type,
         });
 
-        const updatePayload = {
+        const ownerPayload = {
           messageId: safeMessage.id,
           roomId: safeMessage.room,
           reactions: safeMessage.reactions,
           reactionCounts: safeMessage.reactionCounts,
+          userReactions: safeMessage.userReactions,
         };
 
-        // Broadcast to all clients in the room
-        io.to(safeMessage.room).emit('reaction_updated', updatePayload);
+        const peerPayload = {
+          messageId: safeMessage.id,
+          roomId: safeMessage.room,
+          reactions: safeMessage.reactions.map((r) => ({ type: r.type })),
+          reactionCounts: safeMessage.reactionCounts,
+        };
+
+        // Deliver to author's sockets with userReactions
+        io.to(`user:${student._id.toString()}`).emit('reaction_updated', ownerPayload);
+
+        // Broadcast to other room members without userReactions (and without any user IDs)
+        io.to(safeMessage.room).except(`user:${student._id.toString()}`).emit('reaction_updated', peerPayload);
 
         logger.info(
           `[Socket] Reaction added (${type}) on msg ${messageId} in room ${safeMessage.room} by ${student.anonymousName}`
         );
 
-        if (callback) callback({ success: true, ...updatePayload });
+        if (callback) callback({ success: true, ...ownerPayload });
       } catch (err) {
         logger.error(`[Socket] Add reaction error: ${err.message}`);
         const errPayload = { message: err.message || 'Failed to add reaction.' };
@@ -299,21 +323,32 @@ export const initSocket = (httpServer) => {
           type,
         });
 
-        const updatePayload = {
+        const ownerPayload = {
           messageId: safeMessage.id,
           roomId: safeMessage.room,
           reactions: safeMessage.reactions,
           reactionCounts: safeMessage.reactionCounts,
+          userReactions: safeMessage.userReactions,
         };
 
-        // Broadcast to all clients in the room
-        io.to(safeMessage.room).emit('reaction_updated', updatePayload);
+        const peerPayload = {
+          messageId: safeMessage.id,
+          roomId: safeMessage.room,
+          reactions: safeMessage.reactions.map((r) => ({ type: r.type })),
+          reactionCounts: safeMessage.reactionCounts,
+        };
+
+        // Deliver to author's sockets with userReactions
+        io.to(`user:${student._id.toString()}`).emit('reaction_updated', ownerPayload);
+
+        // Broadcast to other room members without userReactions (and without any user IDs)
+        io.to(safeMessage.room).except(`user:${student._id.toString()}`).emit('reaction_updated', peerPayload);
 
         logger.info(
           `[Socket] Reaction removed (${type}) on msg ${messageId} in room ${safeMessage.room} by ${student.anonymousName}`
         );
 
-        if (callback) callback({ success: true, ...updatePayload });
+        if (callback) callback({ success: true, ...ownerPayload });
       } catch (err) {
         logger.error(`[Socket] Remove reaction error: ${err.message}`);
         const errPayload = { message: err.message || 'Failed to remove reaction.' };

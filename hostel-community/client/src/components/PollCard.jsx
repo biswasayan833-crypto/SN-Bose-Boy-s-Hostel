@@ -20,8 +20,6 @@ export const PollCard = ({
   onDelete = null,
   onClose = null,
 }) => {
-  if (!poll) return null;
-
   const {
     id,
     question,
@@ -34,12 +32,14 @@ export const PollCard = ({
     expiresAt,
     userVotedOptionId,
     hasVoted = false,
-  } = poll;
+  } = poll || {};
 
   const [selectedOption, setSelectedOption] = useState(userVotedOptionId || '');
   const [isChangingVote, setIsChangingVote] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+
+  if (!poll) return null;
 
   const effectiveClosed = isClosed || isExpired;
   const showResults = (hasVoted && !isChangingVote) || effectiveClosed;

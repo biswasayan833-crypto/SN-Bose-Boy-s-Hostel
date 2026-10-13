@@ -12,7 +12,7 @@ export { ALLOWED_REACTION_TYPES };
  * Guarantees that sender's real fullName and email are never returned.
  * Replaces content with "Message deleted" if soft-deleted.
  */
-export const formatSafeMessage = (msg) => {
+export const formatSafeMessage = (msg, requestingUser = null) => {
   const sender = msg.sender || {};
   const isDeleted = Boolean(msg.isDeleted);
 
@@ -24,21 +24,38 @@ export const formatSafeMessage = (msg) => {
     clap: 0,
   };
 
+  const rawSenderId = sender._id
+    ? sender._id.toString()
+    : (sender.id || (msg.sender?._id ? msg.sender._id.toString() : (msg.sender ? msg.sender.toString() : undefined)));
+
+  const reqUserId = requestingUser?._id
+    ? requestingUser._id.toString()
+    : (requestingUser?.id ? requestingUser.id.toString() : (requestingUser ? requestingUser.toString() : null));
+
+  const isOwn = Boolean(reqUserId && rawSenderId && reqUserId === rawSenderId);
+
   const safeReactions = [];
+  const userReactions = [];
 
   if (!isDeleted && Array.isArray(msg.reactions)) {
     for (const r of msg.reactions) {
       if (reactionCounts[r.type] !== undefined) {
         reactionCounts[r.type] += 1;
       }
+      const rUserId = r.user?._id
+        ? r.user._id.toString()
+        : (r.user?.id ? r.user.id.toString() : (r.user ? r.user.toString() : null));
+      const isMyReaction = Boolean(reqUserId && rUserId && reqUserId === rUserId);
+      if (isMyReaction && !userReactions.includes(r.type)) {
+        userReactions.push(r.type);
+      }
       safeReactions.push({
-        user: r.user?._id ? r.user._id.toString() : r.user?.toString?.() || String(r.user),
         type: r.type,
+        ...(isMyReaction ? { reactedByMe: true } : {}),
       });
     }
   }
 
-  const senderId = sender._id ? sender._id.toString() : (sender.id || (msg.sender?._id ? msg.sender._id.toString() : (msg.sender ? msg.sender.toString() : undefined)));
   const senderName = msg.anonymousName || sender.anonymousName || 'Anonymous Student';
   const senderAvatar = msg.anonymousAvatar || sender.anonymousAvatar || '🎭';
   const senderYear = msg.senderYear || sender.year || 'Hostel Resident';
@@ -52,13 +69,15 @@ export const formatSafeMessage = (msg) => {
     isPinned: Boolean(msg.isPinned),
     pinnedAt: msg.pinnedAt || null,
     sender: {
-      id: senderId,
+      ...(isOwn ? { id: rawSenderId } : {}),
       anonymousName: senderName,
       anonymousAvatar: senderAvatar,
       year: senderYear,
     },
+    isOwn,
     reactions: safeReactions,
     reactionCounts,
+    userReactions,
     attachment:
       !isDeleted && msg.attachment && (msg.attachment.url || msg.attachment.originalName)
         ? {
@@ -98,7 +117,7 @@ export const getRoomMessages = async (roomId, user, { page = 1, limit = 30 } = {
   // Reverse so the oldest in this slice appears first (chronological order)
   const chronologicalMessages = rawMessages.reverse();
 
-  const formattedMessages = chronologicalMessages.map(formatSafeMessage);
+  const formattedMessages = chronologicalMessages.map((m) => formatSafeMessage(m, user));
 
   return {
     messages: formattedMessages,
@@ -146,7 +165,7 @@ export const createMessage = async ({ roomId, user, content }) => {
   // Populate sender with ONLY anonymous fields
   await message.populate('sender', 'anonymousName anonymousAvatar year');
 
-  return formatSafeMessage(message);
+  return formatSafeMessage(message, user);
 };
 
 /**
@@ -205,7 +224,7 @@ export const createMessageWithAttachment = async ({ roomId, user, content, file 
   // Populate sender with ONLY anonymous fields
   await message.populate('sender', 'anonymousName anonymousAvatar year');
 
-  return formatSafeMessage(message);
+  return formatSafeMessage(message, user);
 };
 
 /**
@@ -287,7 +306,7 @@ export const addReaction = async ({ messageId, user, type }) => {
     }
   }
 
-  return formatSafeMessage(message);
+  return formatSafeMessage(message, user);
 };
 
 /**
@@ -332,7 +351,7 @@ export const removeReaction = async ({ messageId, user, type }) => {
   await message.save();
   await message.populate('sender', 'anonymousName anonymousAvatar year');
 
-  return formatSafeMessage(message);
+  return formatSafeMessage(message, user);
 };
 
 /**
@@ -423,13 +442,22 @@ export const pinMessage = async ({ messageId, user }) => {
   await message.save();
   await message.populate('sender', 'anonymousName anonymousAvatar year');
 
-  const safeMsg = formatSafeMessage(message);
+  const safeMsg = formatSafeMessage(message, user);
 
   // Real-time broadcast
   try {
     const io = getIO();
     if (io) {
-      io.to(safeMsg.room).emit('message:pinned', safeMsg);
+      const peerMsg = {
+        ...safeMsg,
+        isOwn: false,
+        sender: {
+          anonymousName: safeMsg.sender.anonymousName,
+          anonymousAvatar: safeMsg.sender.anonymousAvatar,
+          year: safeMsg.sender.year,
+        },
+      };
+      io.to(safeMsg.room).emit('message:pinned', peerMsg);
     }
   } catch (err) {
     // Socket might not be available in test harness
@@ -464,7 +492,7 @@ export const unpinMessage = async ({ messageId, user }) => {
   await message.save();
   await message.populate('sender', 'anonymousName anonymousAvatar year');
 
-  const safeMsg = formatSafeMessage(message);
+  const safeMsg = formatSafeMessage(message, user);
 
   try {
     const io = getIO();
@@ -496,7 +524,7 @@ export const getPinnedMessages = async (roomId, user) => {
     .populate('sender', 'anonymousName anonymousAvatar year')
     .lean();
 
-  return pinned.map(formatSafeMessage);
+  return pinned.map((m) => formatSafeMessage(m, user));
 };
 
 export default {
