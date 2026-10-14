@@ -50,7 +50,16 @@ export const Features = () => {
   ];
 
   return (
-    <section id="features" className="py-20 md:py-28 relative">
+    <section
+      id="features"
+      className="scroll-mt-24"
+      style={{
+        padding: '96px 24px',
+        position: 'relative',
+        zIndex: 2,
+        background: 'transparent',
+      }}
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Section Header */}

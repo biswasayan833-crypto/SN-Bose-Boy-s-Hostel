@@ -7,7 +7,7 @@ import AboutPlatform from '../components/AboutPlatform';
 
 export const LandingPage = ({ onOpenEnter, onOpenHowItWorks, onSelectRoom }) => {
   return (
-    <div className="flex flex-col space-y-4">
+    <div className="flex flex-col">
       <Hero
         onOpenEnter={onOpenEnter}
         onOpenHowItWorks={onOpenHowItWorks}

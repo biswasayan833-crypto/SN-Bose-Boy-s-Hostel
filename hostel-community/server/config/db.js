@@ -6,7 +6,7 @@ import mongoose from 'mongoose';
  * offline UI preview and health checking during initial development stages.
  */
 export const connectDB = async () => {
-  const mongoURI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/sn_bose_hostel';
+  const mongoURI = process.env.MONGO_URI || process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/sn_bose_hostel';
 
   try {
     const conn = await mongoose.connect(mongoURI, {

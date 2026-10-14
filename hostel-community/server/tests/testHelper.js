@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 import jwt from 'jsonwebtoken';
 
 dotenv.config();
+process.env.NODE_ENV = 'test';
 
 import app from '../app.js';
 import { initSocket } from '../socket/chat.socket.js';

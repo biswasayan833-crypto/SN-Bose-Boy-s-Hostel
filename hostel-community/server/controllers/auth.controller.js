@@ -1,4 +1,9 @@
-import { registerStudent, loginStudent } from '../services/auth.service.js';
+import {
+  registerStudent,
+  loginStudent,
+  verifyLoginOtp,
+  resendLoginOtp,
+} from '../services/auth.service.js';
 import { successResponse, errorResponse } from '../utils/responseHelper.js';
 
 /**
@@ -31,17 +36,47 @@ export const register = async (req, res) => {
 };
 
 /**
- * Handle student login
+ * Handle student login (Step 1: Credentials -> Dispatches 2FA OTP)
  * POST /api/auth/login
  */
 export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
     const result = await loginStudent({ email, password });
-    return successResponse(res, 'Login successful', result, 200);
+    return successResponse(res, result.message || 'Verification code sent to your email', result, 200);
   } catch (error) {
     const statusCode = error.statusCode || 401;
     return errorResponse(res, error.message || 'Authentication failed.', null, statusCode);
+  }
+};
+
+/**
+ * Handle 2FA OTP verification (Step 2: OTP -> Returns JWT & Profile)
+ * POST /api/auth/verify-otp
+ */
+export const verifyOtp = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    const result = await verifyLoginOtp({ email, otp });
+    return successResponse(res, 'Authentication successful', result, 200);
+  } catch (error) {
+    const statusCode = error.statusCode || 400;
+    return errorResponse(res, error.message || 'Verification failed.', null, statusCode);
+  }
+};
+
+/**
+ * Handle 2FA OTP resend
+ * POST /api/auth/resend-otp
+ */
+export const resendOtp = async (req, res) => {
+  try {
+    const { email } = req.body;
+    const result = await resendLoginOtp({ email });
+    return successResponse(res, result.message || 'Verification code resent successfully', result, 200);
+  } catch (error) {
+    const statusCode = error.statusCode || 400;
+    return errorResponse(res, error.message || 'Failed to resend verification code.', null, statusCode);
   }
 };
 
@@ -81,6 +116,8 @@ export const logout = async (req, res) => {
 export default {
   register,
   login,
+  verifyOtp,
+  resendOtp,
   getMe,
   logout,
 };

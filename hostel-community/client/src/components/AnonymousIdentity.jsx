@@ -63,7 +63,16 @@ export const AnonymousIdentity = () => {
   const activePersona = samplePersonas[currentIndex];
 
   return (
-    <section id="identity" className="py-20 md:py-28 relative border-y border-white/[0.05]">
+    <section
+      id="identity"
+      className="scroll-mt-24 border-y border-white/[0.05]"
+      style={{
+        padding: '96px 24px',
+        position: 'relative',
+        zIndex: 2,
+        background: 'transparent',
+      }}
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">

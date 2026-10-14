@@ -36,39 +36,40 @@ export const Navbar = () => {
 
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        scrolled
-          ? 'glass-panel-deep border-b border-white/[0.08] shadow-2xl shadow-black/50 py-3'
-          : 'bg-transparent py-5'
-      }`}
+      className="fixed top-0 left-0 right-0 z-50 flex items-center transition-all duration-300"
+      style={{
+        height: '56px',
+        background: 'rgba(8, 12, 18, 0.4)',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
+        borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+      }}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between">
+      <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-[56px]">
           {/* Logo & Hostel Name */}
-          <Link to="/" className="flex items-center gap-2.5 sm:gap-3 group focus-ring rounded-xl min-w-0">
-            <div className="relative flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-violet-600 via-indigo-600 to-cyan-500 p-[1px] shadow-lg shadow-indigo-500/25 group-hover:shadow-indigo-500/50 transition-all duration-300 flex-shrink-0">
-              <div className="w-full h-full bg-[#070a12] rounded-[11px] flex items-center justify-center">
-                <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-400 group-hover:scale-110 transition-transform duration-300" />
+          <Link to="/" className="flex items-center gap-2 sm:gap-2.5 group focus-ring rounded-xl min-w-0">
+            <div className="relative flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-gradient-to-br from-violet-600 via-indigo-600 to-cyan-500 p-[1px] shadow-md shadow-indigo-500/20 group-hover:shadow-indigo-500/40 transition-all duration-300 flex-shrink-0">
+              <div className="w-full h-full bg-[#070a12] rounded-[7px] flex items-center justify-center">
+                <Shield className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-indigo-400 group-hover:scale-110 transition-transform duration-300" />
               </div>
-              <span className="absolute -bottom-1 -right-1 flex h-3 w-3">
+              <span className="absolute -bottom-0.5 -right-0.5 flex h-2 w-2">
                 <span
-                  className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
-                    online ? 'bg-emerald-400' : 'bg-amber-400'
-                  }`}
+                  className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"
+                  style={{ backgroundColor: '#10b981' }}
                 />
                 <span
-                  className={`relative inline-flex rounded-full h-3 w-3 ${
-                    online ? 'bg-emerald-500' : 'bg-amber-500'
-                  }`}
+                  className="relative inline-flex rounded-full h-2 w-2"
+                  style={{ backgroundColor: '#10b981' }}
                 />
               </span>
             </div>
 
-            <div className="flex flex-col min-w-0">
-              <span className="font-bold text-sm sm:text-base md:text-lg tracking-tight text-white group-hover:text-indigo-200 transition-colors truncate">
+            <div className="flex flex-col min-w-0 leading-tight">
+              <span className="font-bold text-xs sm:text-sm tracking-tight text-white group-hover:text-indigo-200 transition-colors truncate">
                 Prof. S.N. Bose
               </span>
-              <span className="text-[10px] sm:text-[11px] font-medium tracking-wider uppercase text-slate-400 truncate">
+              <span className="text-[9px] sm:text-[10px] font-medium tracking-wider uppercase text-slate-400 truncate">
                 Boys Hostel Community
               </span>
             </div>
@@ -110,15 +111,23 @@ export const Navbar = () => {
 
           {/* Action CTAs & Status Pill */}
           <div className="hidden md:flex items-center gap-3">
-            {/* Live Backend Connection Indicator */}
-            <Badge
-              variant={online ? 'emerald' : loading ? 'amber' : 'rose'}
-              size="sm"
-              dot={true}
-              title={online ? 'Backend API connected and operating' : 'Connecting to API'}
+            {/* Dynamic Live Socket Indicator */}
+            <div
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold text-emerald-300 bg-emerald-950/40 border border-emerald-500/25 shadow-sm"
+              title="Real-time Socket.IO community stream connected"
             >
-              {online ? 'API Online' : loading ? 'Checking...' : 'Offline'}
-            </Badge>
+              <span className="relative flex h-2 w-2">
+                <span
+                  className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"
+                  style={{ backgroundColor: '#10b981' }}
+                />
+                <span
+                  className="relative inline-flex rounded-full h-2 w-2"
+                  style={{ backgroundColor: '#10b981' }}
+                />
+              </span>
+              <span>Live (Socket.IO)</span>
+            </div>
 
             {isAuthenticated ? (
               <div className="flex items-center gap-2.5">
@@ -194,7 +203,7 @@ export const Navbar = () => {
 
                 <Link
                   to="/register"
-                  className="btn-cinema-primary text-xs py-2 px-4 shadow-lg shadow-indigo-600/25"
+                  className="btn-cinema-primary text-xs py-2 px-4 shadow-lg shadow-amber-500/25"
                 >
                   <span>Join Community</span>
                   <ArrowRight className="w-3.5 h-3.5" />
@@ -258,10 +267,20 @@ export const Navbar = () => {
             </nav>
 
             <div className="flex items-center justify-between py-1 px-1">
-              <span className="text-[11px] text-slate-400">Backend Status</span>
-              <Badge variant={online ? 'emerald' : 'amber'} size="sm" dot={true}>
-                {online ? 'Online' : 'Standby'}
-              </Badge>
+              <span className="text-[11px] text-slate-400">Connection</span>
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold text-emerald-300 bg-emerald-950/40 border border-emerald-500/25">
+                <span className="relative flex h-2 w-2">
+                  <span
+                    className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"
+                    style={{ backgroundColor: '#10b981' }}
+                  />
+                  <span
+                    className="relative inline-flex rounded-full h-2 w-2"
+                    style={{ backgroundColor: '#10b981' }}
+                  />
+                </span>
+                <span>Live (Socket.IO)</span>
+              </div>
             </div>
 
             <div className="flex flex-col gap-2 pt-1">

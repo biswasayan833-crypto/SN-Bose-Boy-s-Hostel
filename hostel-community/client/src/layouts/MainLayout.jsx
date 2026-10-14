@@ -4,11 +4,13 @@ import Footer from '../components/Footer';
 import HowItWorksModal from '../components/HowItWorksModal';
 import JoinModal from '../components/JoinModal';
 import { CinematicBackground } from '../components/ui/CinematicBackground';
+import { useAuth } from '../context/AuthContext';
 
 export const MainLayout = ({ children }) => {
   const [isJoinOpen, setIsJoinOpen] = useState(false);
   const [isHowItWorksOpen, setIsHowItWorksOpen] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState(null);
+  const { isAuthenticated } = useAuth();
 
   const handleOpenJoin = (room = null) => {
     setSelectedRoom(room);
@@ -21,7 +23,10 @@ export const MainLayout = ({ children }) => {
   };
 
   return (
-    <CinematicBackground className="selection:bg-indigo-500/30 selection:text-indigo-200">
+    <CinematicBackground
+      enableVideo={!isAuthenticated}
+      className="selection:bg-indigo-500/30 selection:text-indigo-200"
+    >
       <Navbar
         onOpenJoin={() => handleOpenJoin(null)}
         onOpenHowItWorks={() => setIsHowItWorksOpen(true)}

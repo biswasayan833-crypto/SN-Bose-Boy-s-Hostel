@@ -1,51 +1,68 @@
-import React, { Suspense } from 'react';
-import Hero3D from '../3d/Hero3D';
+import React, { useContext } from 'react';
+import { AuthContext } from '../../context/AuthContext';
+import ScrollVideoBackground from './ScrollVideoBackground';
 
 /**
- * Reusable CinematicBackground primitive for Task 10 Design System
- * Creates depth, ambient cosmic/neon lighting, and subtle grid textures
- * without sacrificing readability, performance, or mobile responsiveness.
+ * Reusable CinematicBackground primitive for Hostel Website
+ * Hosts the fixed, full-viewport HTML5 video container bound to window scroll
+ * with soft dark gradient overlays and elevated UI content container (z-index: 1).
+ *
+ * NOTE: Background video is strictly scoped to unauthenticated/pre-login views.
  */
 export const CinematicBackground = ({
-  showGrid = true,
-  showOrbs = true,
-  enable3D = false,
+  showGrid = false,
+  showOrbs = false,
+  enableVideo = false,
+  videoSrc = '/assets/videos/hero.mp4',
   className = '',
+  style = {},
   children,
 }) => {
+  const authContext = useContext(AuthContext);
+  const isAuthenticated = Boolean(authContext?.isAuthenticated || authContext?.user);
+
+  // Background video is strictly scoped to pre-login/unauthenticated pages
+  const shouldRenderVideo = Boolean(enableVideo && !isAuthenticated);
+
   return (
-    <div className={`relative min-h-screen bg-[#07090e] text-slate-100 overflow-x-hidden ${className}`}>
-      {/* 1. Ambient Glow Layers (Fixed or Absolute behind content) */}
+    <div
+      className={`relative min-h-screen bg-transparent text-slate-100 ${style?.overflow ? '' : 'overflow-x-hidden'} ${className}`}
+      style={style}
+    >
+      {/* 1. Fixed, Full-Viewport HTML5 Video Background Container (strictly pre-login) */}
+      {shouldRenderVideo && (
+        <ScrollVideoBackground
+          videoSrc={videoSrc}
+        />
+      )}
+
+      {/* 2. Ambient Accent Glow Layers */}
       {showOrbs && (
         <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden" aria-hidden="true">
           {/* Top-Center Indigo/Violet Glow */}
-          <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[720px] h-[420px] rounded-full bg-gradient-to-tr from-indigo-600/18 via-violet-600/12 to-cyan-500/08 blur-[140px] animate-ambient-drift" />
+          <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[720px] h-[420px] rounded-full bg-gradient-to-tr from-indigo-600/15 via-violet-600/10 to-cyan-500/05 blur-[140px] animate-ambient-drift" />
 
           {/* Left Lateral Glow */}
-          <div className="absolute top-1/3 -left-48 w-[400px] h-[400px] rounded-full bg-violet-600/10 blur-[130px]" />
+          <div className="absolute top-1/3 -left-48 w-[400px] h-[400px] rounded-full bg-violet-600/08 blur-[130px]" />
 
           {/* Right Bottom Cyan Glow */}
-          <div className="absolute bottom-12 -right-48 w-[450px] h-[450px] rounded-full bg-cyan-500/08 blur-[140px]" />
+          <div className="absolute bottom-12 -right-48 w-[450px] h-[450px] rounded-full bg-cyan-500/06 blur-[140px]" />
         </div>
       )}
 
-      {/* 2. Subtle Tech Grid Layer */}
+      {/* 3. Subtle Tech Grid Layer */}
       {showGrid && (
         <div
-          className="pointer-events-none fixed inset-0 z-0 bg-grid-pattern opacity-40"
+          className="pointer-events-none fixed inset-0 z-0 bg-grid-pattern opacity-30"
           aria-hidden="true"
         />
       )}
 
-      {/* 3. Ambient 3D Three.js Layer (Optional) */}
-      {enable3D && (
-        <Suspense fallback={null}>
-          <Hero3D intensity="subtle" enableParallax={true} className="fixed" />
-        </Suspense>
-      )}
-
-      {/* 4. Foreground Page Content Container */}
-      <div className="relative z-10 flex flex-col min-h-screen">
+      {/* 4. Foreground Page Content Container elevated with z-index: 1 */}
+      <div
+        className="relative z-[1] flex flex-col min-h-screen"
+        style={{ zIndex: 1 }}
+      >
         {children}
       </div>
     </div>

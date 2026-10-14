@@ -44,7 +44,7 @@ describe('Task 1-3 Regression Suite', () => {
     assert.strictEqual(body.data.user.year, '2nd Year');
   });
 
-  it('3. POST /api/auth/login authenticates student and returns JWT', async () => {
+  it('3. POST /api/auth/login initiates 2FA and POST /api/auth/verify-otp authenticates student', async () => {
     const res = await fetch(`${ctx.baseUrl}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -52,14 +52,29 @@ describe('Task 1-3 Regression Suite', () => {
         email: ctx.student2.email,
         password: 'Password123!',
       }),
-
     });
 
     assert.strictEqual(res.status, 200);
     const body = await res.json();
     assert.strictEqual(body.success, true);
-    assert.ok(body.data.token);
-    assert.strictEqual(body.data.user.anonymousName, ctx.student2.anonymousName);
+    assert.strictEqual(body.data.requires2FA, true);
+    assert.ok(body.data.testOtp);
+
+    // Complete 2FA via /verify-otp
+    const verifyRes = await fetch(`${ctx.baseUrl}/api/auth/verify-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: ctx.student2.email,
+        otp: body.data.testOtp,
+      }),
+    });
+
+    assert.strictEqual(verifyRes.status, 200);
+    const verifyBody = await verifyRes.json();
+    assert.strictEqual(verifyBody.success, true);
+    assert.ok(verifyBody.data.token);
+    assert.strictEqual(verifyBody.data.user.anonymousName, ctx.student2.anonymousName);
   });
 
   it('4. GET /api/rooms returns ONLY authorized rooms for 2nd Year student', async () => {

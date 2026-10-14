@@ -56,7 +56,16 @@ export const CommunityPreview = ({ onSelectRoom }) => {
   ];
 
   return (
-    <section id="community" className="py-20 md:py-28 relative">
+    <section
+      id="community"
+      className="scroll-mt-24"
+      style={{
+        padding: '96px 24px',
+        position: 'relative',
+        zIndex: 2,
+        background: 'transparent',
+      }}
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Section Header */}

@@ -7,7 +7,7 @@ import { CinematicBackground } from '../components/ui/CinematicBackground';
 
 export const Register = () => {
   const navigate = useNavigate();
-  const { register } = useAuth();
+  const { register, isAuthenticated } = useAuth();
 
   const [formData, setFormData] = useState({
     fullName: '',
@@ -78,7 +78,10 @@ export const Register = () => {
   };
 
   return (
-    <CinematicBackground className="justify-center py-12 sm:px-6 lg:px-8 selection:bg-indigo-500/30 selection:text-indigo-200">
+    <CinematicBackground
+      enableVideo={!isAuthenticated}
+      className="justify-center py-12 sm:px-6 lg:px-8 selection:bg-indigo-500/30 selection:text-indigo-200"
+    >
       <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10 px-4 sm:px-0 my-auto">
         {/* Brand logo & title */}
         <div className="text-center space-y-3 animate-slide-down">

@@ -1,9 +1,11 @@
+import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import User, { ALLOWED_YEARS } from '../models/User.js';
 import {
   generateUniqueAnonymousIdentity,
   validateIdentityAvailability,
 } from './identity.service.js';
+import { sendLoginOtpEmail } from './email.service.js';
 
 /**
  * Generate a signed JSON Web Token
@@ -125,7 +127,7 @@ export const registerStudent = async ({
 };
 
 /**
- * Login an existing hostel student
+ * Login an existing hostel student - triggers 2FA OTP verification
  */
 export const loginStudent = async ({ email, password }) => {
   if (!email || !password) {
@@ -157,12 +159,148 @@ export const loginStudent = async ({ email, password }) => {
     throw error;
   }
 
+  // Generate random 6-digit OTP
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+  // Hash OTP for storage
+  const hashedOtp = crypto.createHash('sha256').update(otp).digest('hex');
+  user.otpCode = hashedOtp;
+  user.otpExpires = otpExpires;
+  await user.save();
+
+  // Dispatch OTP email (with local console fallback)
+  await sendLoginOtpEmail({
+    email: user.email,
+    otp,
+    fullName: user.fullName,
+  });
+
+  const isDevOrTest = process.env.NODE_ENV !== 'production' || !process.env.EMAIL_USER;
+
+  return {
+    requires2FA: true,
+    email: user.email,
+    message: 'Verification code sent to your email',
+    ...(isDevOrTest ? { testOtp: otp } : {}),
+  };
+};
+
+/**
+ * Verify 2FA OTP and finalize authentication
+ */
+export const verifyLoginOtp = async ({ email, otp }) => {
+  if (!email || !otp) {
+    const error = new Error('Both email and verification code are required.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const normalizedEmail = email.trim().toLowerCase();
+  const cleanedOtp = String(otp).trim();
+
+  if (!/^\d{6}$/.test(cleanedOtp)) {
+    const error = new Error('Verification code must be a 6-digit numeric code.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const user = await User.findOne({ email: normalizedEmail }).select('+otpCode +otpExpires');
+  if (!user) {
+    const error = new Error('Invalid email or verification code.');
+    error.statusCode = 401;
+    throw error;
+  }
+
+  if (!user.isActive) {
+    const error = new Error('Your account has been deactivated. Please contact hostel authorities.');
+    error.statusCode = 403;
+    throw error;
+  }
+
+  if (!user.otpCode || !user.otpExpires) {
+    const error = new Error('No active verification code found. Please request a new code.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (new Date() > user.otpExpires) {
+    // Clear expired code
+    user.otpCode = null;
+    user.otpExpires = null;
+    await user.save();
+
+    const error = new Error('Verification code has expired. Please request a new code.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const hashedInputOtp = crypto.createHash('sha256').update(cleanedOtp).digest('hex');
+  if (hashedInputOtp !== user.otpCode) {
+    const error = new Error('Invalid verification code. Please check and try again.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  // Clear OTP fields upon successful verification
+  user.otpCode = null;
+  user.otpExpires = null;
+  await user.save();
+
   // Sign JWT token
   const token = signJwtToken(user._id);
 
   return {
     user: user.toSafeObject(),
     token,
+  };
+};
+
+/**
+ * Resend 2FA OTP code
+ */
+export const resendLoginOtp = async ({ email }) => {
+  if (!email) {
+    const error = new Error('Email address is required.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const normalizedEmail = email.trim().toLowerCase();
+  const user = await User.findOne({ email: normalizedEmail });
+  if (!user) {
+    const error = new Error('No user account found with this email address.');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  if (!user.isActive) {
+    const error = new Error('Your account has been deactivated. Please contact hostel authorities.');
+    error.statusCode = 403;
+    throw error;
+  }
+
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+  const hashedOtp = crypto.createHash('sha256').update(otp).digest('hex');
+  user.otpCode = hashedOtp;
+  user.otpExpires = otpExpires;
+  await user.save();
+
+  await sendLoginOtpEmail({
+    email: user.email,
+    otp,
+    fullName: user.fullName,
+  });
+
+  const isDevOrTest = process.env.NODE_ENV !== 'production' || !process.env.EMAIL_USER;
+
+  return {
+    success: true,
+    email: user.email,
+    message: 'A new verification code has been sent to your email.',
+    ...(isDevOrTest ? { testOtp: otp } : {}),
   };
 };
 
@@ -184,5 +322,7 @@ export default {
   signJwtToken,
   registerStudent,
   loginStudent,
+  verifyLoginOtp,
+  resendLoginOtp,
   getStudentProfile,
 };

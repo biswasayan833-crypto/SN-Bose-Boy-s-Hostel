@@ -3,7 +3,7 @@ import authService from '../services/authService';
 
 const TOKEN_KEY = 'snbose_auth_token';
 
-const AuthContext = createContext(null);
+export const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -39,13 +39,29 @@ export const AuthProvider = ({ children }) => {
     initializeAuth();
   }, [initializeAuth]);
 
-  // Login handler
+  // Login handler (Step 1: initiates 2FA flow)
   const login = async (credentials) => {
     const res = await authService.login(credentials);
     if (res?.data?.token && res?.data?.user) {
       localStorage.setItem(TOKEN_KEY, res.data.token);
       setUser(res.data.user);
     }
+    return res;
+  };
+
+  // Verify 2FA OTP handler (Step 2: finalizes session)
+  const verifyOtp = async (email, otp) => {
+    const res = await authService.verifyOtp({ email, otp });
+    if (res?.data?.token && res?.data?.user) {
+      localStorage.setItem(TOKEN_KEY, res.data.token);
+      setUser(res.data.user);
+    }
+    return res;
+  };
+
+  // Resend 2FA OTP handler
+  const resendOtp = async (email) => {
+    const res = await authService.resendOtp({ email });
     return res;
   };
 
@@ -81,6 +97,8 @@ export const AuthProvider = ({ children }) => {
     loading,
     isAuthenticated: !!user,
     login,
+    verifyOtp,
+    resendOtp,
     register,
     logout,
     updateUser,

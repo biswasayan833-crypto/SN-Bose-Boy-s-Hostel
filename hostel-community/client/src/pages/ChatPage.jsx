@@ -472,7 +472,7 @@ export const ChatPage = () => {
   const isGlobal = room?.type === 'global';
 
   return (
-    <CinematicBackground className="selection:bg-indigo-500/30 selection:text-indigo-200">
+    <CinematicBackground enableVideo={false} className="selection:bg-indigo-500/30 selection:text-indigo-200">
       
       {/* Top Channel Header Bar */}
       <header className="sticky top-0 z-40 glass-panel-deep border-b border-white/[0.08] shadow-2xl shadow-black/50">

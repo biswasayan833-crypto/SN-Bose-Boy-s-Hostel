@@ -10,7 +10,14 @@ export const Footer = () => {
   const { isAuthenticated } = useAuth();
 
   return (
-    <footer className="border-t border-white/[0.08] bg-[#05080f] text-slate-400 text-sm relative">
+    <footer
+      className="border-t border-white/[0.08] text-slate-400 text-sm"
+      style={{
+        background: 'transparent',
+        position: 'relative',
+        zIndex: 2,
+      }}
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-10">

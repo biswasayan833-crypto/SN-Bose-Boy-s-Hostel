@@ -5,7 +5,16 @@ import { Badge } from './ui/Badge';
 
 export const AboutPlatform = () => {
   return (
-    <section id="about" className="py-20 md:py-28 relative border-t border-white/[0.06]">
+    <section
+      id="about"
+      className="scroll-mt-24 border-t border-white/[0.06]"
+      style={{
+        padding: '96px 24px',
+        position: 'relative',
+        zIndex: 2,
+        background: 'transparent',
+      }}
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">

@@ -190,21 +190,27 @@ export function NoticeBoardModal({ isOpen, onClose }) {
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-3xl my-auto rounded-3xl glass-panel-deep border border-indigo-500/30 shadow-2xl shadow-indigo-950/70 p-5 sm:p-7 space-y-6 text-left animate-scale-in"
+        className="relative w-full max-w-3xl my-auto rounded-3xl border border-amber-500/25 p-5 sm:p-7 space-y-6 text-left animate-scale-in"
+        style={{
+          background: 'rgba(15, 23, 42, 0.75)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.6)',
+        }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Top Header Bar */}
         <div className="flex items-center justify-between border-b border-white/[0.08] pb-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-cyan-400 shadow-inner">
-              <Megaphone className="w-5 h-5 text-cyan-300" />
+            <div className="w-10 h-10 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-inner">
+              <Megaphone className="w-5 h-5 text-amber-400" />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h3 id="notice-board-title" className="text-lg sm:text-xl font-bold text-white tracking-tight">
                   Hostel Notice Board
                 </h3>
-                <span className="text-[11px] px-2 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 font-medium">
+                <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 font-medium">
                   Official Bulletins
                 </span>
               </div>
@@ -218,7 +224,7 @@ export function NoticeBoardModal({ isOpen, onClose }) {
           <button
             onClick={onClose}
             aria-label="Close Notice Board"
-            className="w-8 h-8 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-white/[0.08] flex items-center justify-center text-slate-400 hover:text-white transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-8 h-8 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-white/[0.08] flex items-center justify-center text-slate-400 hover:text-white transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-500"
           >
             <X className="w-4 h-4" />
           </button>
@@ -232,7 +238,7 @@ export function NoticeBoardModal({ isOpen, onClose }) {
               onClick={() => setActiveFilter('all')}
               className={`px-3 py-1.5 rounded-xl transition-all whitespace-nowrap ${
                 activeFilter === 'all'
-                  ? 'bg-indigo-600 text-white shadow-sm font-semibold'
+                  ? 'bg-amber-500 text-slate-950 shadow-sm font-bold'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
@@ -252,7 +258,7 @@ export function NoticeBoardModal({ isOpen, onClose }) {
               onClick={() => setActiveFilter('mess')}
               className={`px-3 py-1.5 rounded-xl transition-all whitespace-nowrap ${
                 activeFilter === 'mess'
-                  ? 'bg-indigo-600 text-white shadow-sm font-semibold'
+                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 font-semibold'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
@@ -262,7 +268,7 @@ export function NoticeBoardModal({ isOpen, onClose }) {
               onClick={() => setActiveFilter('facilities')}
               className={`px-3 py-1.5 rounded-xl transition-all whitespace-nowrap ${
                 activeFilter === 'facilities'
-                  ? 'bg-indigo-600 text-white shadow-sm font-semibold'
+                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 font-semibold'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
