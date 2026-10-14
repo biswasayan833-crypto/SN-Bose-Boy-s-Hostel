@@ -39,8 +39,13 @@ class SocketService {
 
     this._setStatus('connecting');
 
-    // In dev, connect to backend port 5000 directly or via origin
-    const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
+    // Socket.io connects to root backend server URL (VITE_API_URL or fallback to http://localhost:5000)
+    const rawUrl = (
+      import.meta.env.VITE_API_URL ||
+      import.meta.env.VITE_SOCKET_URL ||
+      'http://localhost:5000'
+    ).replace(/\/$/, '');
+    const socketUrl = rawUrl.replace(/\/api$/, '');
 
     this.socket = io(socketUrl, {
       auth: { token },

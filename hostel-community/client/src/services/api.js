@@ -1,7 +1,18 @@
 import axios from 'axios';
 
+// Base API URL configuration:
+// Uses import.meta.env.VITE_API_URL with fallback to http://localhost:5000 for local development.
+const rawApiUrl = (
+  import.meta.env.VITE_API_URL ||
+  import.meta.env.VITE_API_BASE_URL ||
+  'http://localhost:5000'
+).replace(/\/$/, '');
+
+// Ensure backend endpoints routed via /api are correctly targeted
+const baseURL = rawApiUrl.endsWith('/api') ? rawApiUrl : `${rawApiUrl}/api`;
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
+  baseURL,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',

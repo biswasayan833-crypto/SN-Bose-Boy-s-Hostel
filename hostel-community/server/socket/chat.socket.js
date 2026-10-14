@@ -12,13 +12,14 @@ import {
 } from '../services/message.service.js';
 import { markRoomAsRead } from '../services/room.service.js';
 import { logger } from '../utils/logger.js';
+import { corsOptions } from '../config/cors.js';
 
 let ioInstance = null;
 
 export const initSocket = (httpServer) => {
   const io = new Server(httpServer, {
     cors: {
-      origin: process.env.CLIENT_URL || ['http://localhost:5173', 'http://127.0.0.1:5173'],
+      origin: corsOptions.origin,
       credentials: true,
       methods: ['GET', 'POST'],
     },
