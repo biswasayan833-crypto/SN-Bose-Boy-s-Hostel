@@ -1,15 +1,27 @@
 import nodemailer from 'nodemailer';
 
 /**
- * Send 2FA OTP verification email using Nodemailer with dev console fallback
+ * Send 2FA OTP verification email using Brevo HTTPS REST API (Port 443),
+ * Google Apps Script Webhook (Port 443), or Nodemailer SMTP with strict timeouts
+ * and fallback to server console.
+ *
+ * Render Free Tier blocks outbound SMTP ports 25, 465, and 587, so HTTPS delivery
+ * (Brevo REST API or Webhook) is prioritized to prevent connection timeouts.
+ *
  * @param {Object} options
  * @param {string} options.email - Recipient email
  * @param {string} options.otp - 6-digit OTP code
  * @param {string} [options.fullName] - Optional student full name
+ * @returns {Promise<{ success: boolean, deliveredVia: string, error?: string }>}
  */
 export const sendLoginOtpEmail = async ({ email, otp, fullName = '' }) => {
+  const brevoApiKey = process.env.BREVO_API_KEY;
+  const webhookUrl = process.env.EMAIL_WEBHOOK_URL;
   const emailUser = process.env.EMAIL_USER;
   const emailPass = process.env.EMAIL_PASS;
+
+  const senderName = process.env.BREVO_SENDER_NAME || process.env.EMAIL_SENDER_NAME || 'Prof. S.N. Bose Boys Hostel';
+  const senderEmail = process.env.BREVO_SENDER_EMAIL || process.env.EMAIL_FROM || emailUser || 'no-reply@snbosehostel.local';
 
   const subject = 'Prof. S.N. Bose Boys Hostel Community - Login Verification Code';
 
@@ -54,8 +66,11 @@ export const sendLoginOtpEmail = async ({ email, otp, fullName = '' }) => {
 
   const textContent = `Prof. S.N. Bose Boys Hostel Community\n\nLogin Verification Code: ${otp}\n\nThis code will expire in 10 minutes. If you did not request this code, please contact hostel administration.`;
 
-  // Always log to console in development or if SMTP credentials are missing
-  const shouldLogConsole = !emailUser || !emailPass || process.env.NODE_ENV !== 'production';
+  // Always log to console in development, or if no email transports are configured
+  const shouldLogConsole =
+    process.env.NODE_ENV !== 'production' ||
+    (!brevoApiKey && !webhookUrl && (!emailUser || !emailPass));
+
   if (shouldLogConsole) {
     console.log('\n============================================================');
     console.log(`[2FA OTP NOTIFICATION]`);
@@ -65,6 +80,86 @@ export const sendLoginOtpEmail = async ({ email, otp, fullName = '' }) => {
     console.log('============================================================\n');
   }
 
+  // 1. Try Brevo REST API (HTTPS Port 443 - Bypasses Render Free Tier blocked SMTP ports)
+  if (brevoApiKey) {
+    try {
+      const brevoPayload = {
+        sender: {
+          name: senderName,
+          email: senderEmail,
+        },
+        to: [
+          {
+            email,
+            ...(fullName ? { name: fullName } : {}),
+          },
+        ],
+        subject,
+        htmlContent,
+        textContent,
+      };
+
+      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'api-key': brevoApiKey,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify(brevoPayload),
+        signal: AbortSignal.timeout(5000),
+      });
+
+      if (response.ok) {
+        console.log(`[2FA Email Success] Sent verification OTP to ${email} via Brevo REST API (HTTPS).`);
+        return { success: true, deliveredVia: 'brevo-api' };
+      }
+
+      const errorText = await response.text();
+      console.warn(`[2FA Email Warning] Brevo REST API returned status ${response.status}: ${errorText}`);
+    } catch (err) {
+      console.warn(`[2FA Email Warning] Brevo REST API request failed (${err.message}).`);
+    }
+  }
+
+  // 2. Try Google Apps Script Webhook (HTTPS Port 443)
+  if (webhookUrl) {
+    try {
+      const webhookPayload = {
+        to: email,
+        recipient: email,
+        fullName,
+        subject,
+        html: htmlContent,
+        text: textContent,
+        otp,
+      };
+
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(webhookPayload),
+        redirect: 'follow',
+        signal: AbortSignal.timeout(5000),
+      });
+
+      if (response.ok || response.status < 400) {
+        console.log(`[2FA Email Success] Dispatched verification OTP to ${email} via Webhook (HTTPS).`);
+        return { success: true, deliveredVia: 'webhook' };
+      }
+
+      const errorText = await response.text();
+      console.warn(`[2FA Email Warning] Email Webhook returned status ${response.status}: ${errorText}`);
+    } catch (err) {
+      console.warn(`[2FA Email Warning] Email Webhook request failed (${err.message}).`);
+    }
+  }
+
+  // 3. Fallback to Nodemailer SMTP Transport with strict timeouts
+  // Note: Render Free Tier blocks outbound ports 25, 465, and 587.
+  // Strict timeouts ensure blocked connections fail fast (4s) instead of hanging past 10s.
   if (emailUser && emailPass) {
     try {
       const transporter = nodemailer.createTransport({
@@ -73,20 +168,27 @@ export const sendLoginOtpEmail = async ({ email, otp, fullName = '' }) => {
           user: emailUser,
           pass: emailPass,
         },
+        connectionTimeout: 4000, // 4s timeout establishing connection
+        greetingTimeout: 4000,   // 4s timeout waiting for SMTP greeting
+        socketTimeout: 5000,     // 5s timeout on socket inactivity
       });
 
       await transporter.sendMail({
-        from: `"Prof. S.N. Bose Boys Hostel" <${emailUser}>`,
+        from: `"${senderName}" <${emailUser}>`,
         to: email,
         subject,
         text: textContent,
         html: htmlContent,
       });
 
+      console.log(`[2FA Email Success] Sent verification OTP to ${email} via SMTP.`);
       return { success: true, deliveredVia: 'smtp' };
     } catch (err) {
       console.warn(`[2FA Email Warning] Failed to send email via SMTP (${err.message}). Falling back to console output.`);
-      return { success: true, deliveredVia: 'console-fallback' };
+      if (process.env.NODE_ENV === 'production') {
+        console.log(`[2FA OTP NOTIFICATION - PRODUCTION FALLBACK] Recipient: ${email} | OTP: >> ${otp} <<`);
+      }
+      return { success: false, deliveredVia: 'console-fallback', error: err.message };
     }
   }
 

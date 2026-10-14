@@ -169,12 +169,18 @@ export const loginStudent = async ({ email, password }) => {
   user.otpExpires = otpExpires;
   await user.save();
 
-  // Dispatch OTP email (with local console fallback)
-  await sendLoginOtpEmail({
-    email: user.email,
-    otp,
-    fullName: user.fullName,
-  });
+  // Dispatch OTP email (fire-and-forget so SMTP timeouts or port-blocking never hang login response)
+  try {
+    sendLoginOtpEmail({
+      email: user.email,
+      otp,
+      fullName: user.fullName,
+    }).catch((emailErr) => {
+      console.warn(`[2FA Email Background Warning] Failed to dispatch OTP email: ${emailErr.message}`);
+    });
+  } catch (emailErr) {
+    console.warn(`[2FA Email Dispatch Sync Warning]: ${emailErr.message}`);
+  }
 
   const isDevOrTest = process.env.NODE_ENV !== 'production' || !process.env.EMAIL_USER;
 
@@ -288,11 +294,18 @@ export const resendLoginOtp = async ({ email }) => {
   user.otpExpires = otpExpires;
   await user.save();
 
-  await sendLoginOtpEmail({
-    email: user.email,
-    otp,
-    fullName: user.fullName,
-  });
+  // Dispatch OTP email (fire-and-forget so SMTP timeouts or port-blocking never hang resend response)
+  try {
+    sendLoginOtpEmail({
+      email: user.email,
+      otp,
+      fullName: user.fullName,
+    }).catch((emailErr) => {
+      console.warn(`[2FA Email Background Warning] Failed to dispatch OTP email: ${emailErr.message}`);
+    });
+  } catch (emailErr) {
+    console.warn(`[2FA Email Dispatch Sync Warning]: ${emailErr.message}`);
+  }
 
   const isDevOrTest = process.env.NODE_ENV !== 'production' || !process.env.EMAIL_USER;
 
