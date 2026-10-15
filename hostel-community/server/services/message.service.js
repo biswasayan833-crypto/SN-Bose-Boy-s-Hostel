@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Message, { ALLOWED_REACTION_TYPES } from '../models/Message.js';
 import { getRoomById } from './room.service.js';
 import { createNotification } from './notification.service.js';
@@ -6,6 +7,79 @@ import { saveAttachment } from './storage.service.js';
 import { validateUploadFile } from '../utils/fileValidator.js';
 
 export { ALLOWED_REACTION_TYPES };
+
+export const POPULATE_REPLY_TO = {
+  path: 'replyTo',
+  select: 'content isDeleted attachment anonymousName anonymousAvatar sender',
+  populate: {
+    path: 'sender',
+    select: 'anonymousName anonymousAvatar',
+  },
+};
+
+/**
+ * Format replyTo message into a safe quoted-message response.
+ * Strictly guarantees that sender's real fullName, email, and internal MongoDB user ID are never returned.
+ * If the original message was deleted or is unavailable, returns a safe fallback.
+ */
+export const formatSafeReplyTo = (replyMsg) => {
+  if (!replyMsg) return null;
+
+  // Handle unpopulated ObjectId or string (e.g. original message was permanently deleted or not populated)
+  if (typeof replyMsg !== 'object' || replyMsg instanceof mongoose.Types.ObjectId) {
+    return {
+      id: replyMsg.toString(),
+      content: 'Original message unavailable',
+      isDeleted: true,
+      sender: {
+        anonymousName: 'Anonymous Student',
+        anonymousAvatar: '🎭',
+      },
+      attachment: null,
+    };
+  }
+
+  const id = replyMsg._id ? replyMsg._id.toString() : (replyMsg.id || String(replyMsg));
+  const isDeleted = Boolean(replyMsg.isDeleted);
+  const sender = replyMsg.sender || {};
+  const senderName = replyMsg.anonymousName || sender.anonymousName || 'Anonymous Student';
+  const senderAvatar = replyMsg.anonymousAvatar || sender.anonymousAvatar || '🎭';
+
+  if (isDeleted) {
+    return {
+      id,
+      content: 'Original message unavailable',
+      isDeleted: true,
+      sender: {
+        anonymousName: senderName,
+        anonymousAvatar: senderAvatar,
+      },
+      attachment: null,
+    };
+  }
+
+  let attachmentSummary = null;
+  if (
+    replyMsg.attachment &&
+    (replyMsg.attachment.originalName || replyMsg.attachment.storedName || replyMsg.attachment.url)
+  ) {
+    attachmentSummary = {
+      originalName: replyMsg.attachment.originalName || 'Attachment',
+      mimeType: replyMsg.attachment.mimeType || 'application/octet-stream',
+    };
+  }
+
+  return {
+    id,
+    content: typeof replyMsg.content === 'string' ? replyMsg.content : '',
+    isDeleted: false,
+    sender: {
+      anonymousName: senderName,
+      anonymousAvatar: senderAvatar,
+    },
+    attachment: attachmentSummary,
+  };
+};
 
 /**
  * Format message into a safe community response.
@@ -78,6 +152,7 @@ export const formatSafeMessage = (msg, requestingUser = null) => {
     reactions: safeReactions,
     reactionCounts,
     userReactions,
+    replyTo: msg.replyTo ? formatSafeReplyTo(msg.replyTo) : null,
     attachment:
       !isDeleted && msg.attachment && (msg.attachment.url || msg.attachment.originalName)
         ? {
@@ -112,6 +187,7 @@ export const getRoomMessages = async (roomId, user, { page = 1, limit = 30 } = {
     .skip(skip)
     .limit(parsedLimit)
     .populate('sender', 'anonymousName anonymousAvatar year')
+    .populate(POPULATE_REPLY_TO)
     .lean();
 
   // Reverse so the oldest in this slice appears first (chronological order)
@@ -132,9 +208,54 @@ export const getRoomMessages = async (roomId, user, { page = 1, limit = 30 } = {
 };
 
 /**
+ * Validate and resolve replyTo reference.
+ * Ensures the target message exists and belongs to the exact same room.
+ * Throws 400 for malformed IDs or cross-room references, and 404 if message does not exist.
+ */
+export const validateAndResolveReplyTo = async (replyTo, room) => {
+  if (replyTo === undefined || replyTo === null || replyTo === '') {
+    return null;
+  }
+
+  const rawId = typeof replyTo === 'object' && replyTo !== null ? (replyTo.id || replyTo._id) : replyTo;
+  if (!rawId) return null;
+
+  if (typeof rawId !== 'string' && !(rawId instanceof mongoose.Types.ObjectId)) {
+    const error = new Error('Invalid replyTo message identifier.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const idString = rawId.toString();
+  if (!mongoose.Types.ObjectId.isValid(idString)) {
+    const error = new Error('Invalid replyTo message identifier.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const originalMessage = await Message.findById(idString);
+  if (!originalMessage) {
+    const error = new Error('The message being replied to does not exist.');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const originalRoomId = originalMessage.room?.toString?.() || String(originalMessage.room);
+  const currentRoomId = room._id?.toString?.() || String(room._id || room);
+
+  if (originalRoomId !== currentRoomId) {
+    const error = new Error('Cross-room replies are not permitted.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return originalMessage._id;
+};
+
+/**
  * Create a message in a room with validation and authorization checks.
  */
-export const createMessage = async ({ roomId, user, content }) => {
+export const createMessage = async ({ roomId, user, content, replyTo = null }) => {
   if (!content || typeof content !== 'string' || content.trim().length === 0) {
     const error = new Error('Message content cannot be empty.');
     error.statusCode = 400;
@@ -151,9 +272,13 @@ export const createMessage = async ({ roomId, user, content }) => {
   // Verify authorization for room
   const room = await getRoomById(roomId, user);
 
+  // Validate optional replyTo
+  const validatedReplyTo = await validateAndResolveReplyTo(replyTo, room);
+
   const message = new Message({
     room: room._id,
     sender: user._id,
+    replyTo: validatedReplyTo,
     content: trimmedContent,
     anonymousName: user.anonymousName,
     anonymousAvatar: user.anonymousAvatar,
@@ -165,15 +290,22 @@ export const createMessage = async ({ roomId, user, content }) => {
   // Populate sender with ONLY anonymous fields
   await message.populate('sender', 'anonymousName anonymousAvatar year');
 
+  if (message.replyTo) {
+    await message.populate(POPULATE_REPLY_TO);
+  }
+
   return formatSafeMessage(message, user);
 };
 
 /**
  * Create a message with a file attachment in an authorized room.
  */
-export const createMessageWithAttachment = async ({ roomId, user, content, file }) => {
+export const createMessageWithAttachment = async ({ roomId, user, content, file, replyTo = null }) => {
   // 1. Verify user authorization for the room
   const room = await getRoomById(roomId, user);
+
+  // Validate optional replyTo
+  const validatedReplyTo = await validateAndResolveReplyTo(replyTo, room);
 
   // 2. Validate file presence and contents
   if (!file) {
@@ -204,6 +336,7 @@ export const createMessageWithAttachment = async ({ roomId, user, content, file 
   const message = new Message({
     room: room._id,
     sender: user._id,
+    replyTo: validatedReplyTo,
     content: trimmedContent,
     anonymousName: user.anonymousName,
     anonymousAvatar: user.anonymousAvatar,
@@ -223,6 +356,10 @@ export const createMessageWithAttachment = async ({ roomId, user, content, file 
 
   // Populate sender with ONLY anonymous fields
   await message.populate('sender', 'anonymousName anonymousAvatar year');
+
+  if (message.replyTo) {
+    await message.populate(POPULATE_REPLY_TO);
+  }
 
   return formatSafeMessage(message, user);
 };
@@ -274,6 +411,9 @@ export const addReaction = async ({ messageId, user, type }) => {
 
   await message.save();
   await message.populate('sender', 'anonymousName anonymousAvatar year');
+  if (message.replyTo) {
+    await message.populate(POPULATE_REPLY_TO);
+  }
 
   // Trigger notification for message owner (if not a self-reaction)
   const isMessageOwner = message.sender._id
@@ -350,6 +490,9 @@ export const removeReaction = async ({ messageId, user, type }) => {
   message.reactions.splice(reactionIndex, 1);
   await message.save();
   await message.populate('sender', 'anonymousName anonymousAvatar year');
+  if (message.replyTo) {
+    await message.populate(POPULATE_REPLY_TO);
+  }
 
   return formatSafeMessage(message, user);
 };
@@ -386,6 +529,9 @@ export const deleteMessage = async ({ messageId, user }) => {
   message.reactions = []; // clear reactions on deleted message
   await message.save();
   await message.populate('sender', 'anonymousName anonymousAvatar year');
+  if (message.replyTo) {
+    await message.populate(POPULATE_REPLY_TO);
+  }
 
   // If an administrator removed another student's message, notify the affected student
   if (isAdmin && !isOwner) {
@@ -441,6 +587,9 @@ export const pinMessage = async ({ messageId, user }) => {
 
   await message.save();
   await message.populate('sender', 'anonymousName anonymousAvatar year');
+  if (message.replyTo) {
+    await message.populate(POPULATE_REPLY_TO);
+  }
 
   const safeMsg = formatSafeMessage(message, user);
 
@@ -491,6 +640,9 @@ export const unpinMessage = async ({ messageId, user }) => {
 
   await message.save();
   await message.populate('sender', 'anonymousName anonymousAvatar year');
+  if (message.replyTo) {
+    await message.populate(POPULATE_REPLY_TO);
+  }
 
   const safeMsg = formatSafeMessage(message, user);
 
@@ -522,6 +674,7 @@ export const getPinnedMessages = async (roomId, user) => {
   })
     .sort({ pinnedAt: -1, createdAt: -1 })
     .populate('sender', 'anonymousName anonymousAvatar year')
+    .populate(POPULATE_REPLY_TO)
     .lean();
 
   return pinned.map((m) => formatSafeMessage(m, user));
@@ -529,9 +682,13 @@ export const getPinnedMessages = async (roomId, user) => {
 
 export default {
   ALLOWED_REACTION_TYPES,
+  POPULATE_REPLY_TO,
+  formatSafeReplyTo,
+  validateAndResolveReplyTo,
   formatSafeMessage,
   getRoomMessages,
   createMessage,
+  createMessageWithAttachment,
   addReaction,
   removeReaction,
   deleteMessage,

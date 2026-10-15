@@ -16,6 +16,12 @@ const messageSchema = new mongoose.Schema(
       required: [true, 'Message must have a sender'],
       index: true,
     },
+    replyTo: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Message',
+      default: null,
+      index: true,
+    },
     content: {
       type: String,
       trim: true,
@@ -138,6 +144,7 @@ messageSchema.index({ room: 1, createdAt: 1 });
 messageSchema.index({ room: 1, createdAt: -1 });
 messageSchema.index({ room: 1, isDeleted: 1, createdAt: -1 });
 messageSchema.index({ room: 1, isPinned: 1, pinnedAt: -1 });
+messageSchema.index({ room: 1, replyTo: 1 });
 messageSchema.index({ 'reactions.user': 1 });
 
 const Message = mongoose.model('Message', messageSchema);

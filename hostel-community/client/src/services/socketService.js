@@ -92,10 +92,18 @@ class SocketService {
     }
   }
 
-  sendMessage(roomId, content, callback) {
+  sendMessage(roomId, content, replyTo = null, callback = null) {
+    let cb = callback;
+    let reply = replyTo;
+    if (typeof replyTo === 'function') {
+      cb = replyTo;
+      reply = null;
+    }
     if (!this.socket) this.connect();
     if (this.socket) {
-      this.socket.emit('send_message', { roomId, content }, callback);
+      const payload = { roomId, content };
+      if (reply) payload.replyTo = reply;
+      this.socket.emit('send_message', payload, cb);
     }
   }
 

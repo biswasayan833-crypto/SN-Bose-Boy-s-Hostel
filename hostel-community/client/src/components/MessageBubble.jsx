@@ -10,6 +10,7 @@ import {
   Pin,
   FileText,
   ExternalLink,
+  Reply,
 } from 'lucide-react';
 import { getAvatarDisplay } from './AvatarPicker';
 import { GlassCard } from './ui/GlassCard';
@@ -30,6 +31,8 @@ export const MessageBubble = ({
   onDeleteMessage,
   onReportMessage,
   onTogglePin,
+  onReply,
+  onScrollToMessage,
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -40,6 +43,7 @@ export const MessageBubble = ({
   const [submittingAction, setSubmittingAction] = useState(false);
   const [reportSuccess, setReportSuccess] = useState(false);
   const [actionError, setActionError] = useState('');
+  const [showMobileActions, setShowMobileActions] = useState(false);
 
   const menuRef = useRef(null);
 
@@ -208,6 +212,18 @@ export const MessageBubble = ({
       >
         {/* Message Bubble Body */}
         <div
+          onClick={(e) => {
+            if (e.target.closest('button, a, img, [role="button"]')) return;
+            const sel = window.getSelection();
+            if (sel && sel.toString().trim().length > 0) return;
+            setShowMobileActions((prev) => !prev);
+          }}
+          onDoubleClick={(e) => {
+            if (e.target.closest('button, a, img, [role="button"]')) return;
+            const sel = window.getSelection();
+            if (sel && sel.toString().trim().length > 0) return;
+            if (!isDeleted) onReply?.(message);
+          }}
           className={`relative rounded-2xl px-3.5 sm:px-4 py-2.5 text-xs sm:text-sm leading-relaxed break-words [overflow-wrap:anywhere] shadow-md transition-all ${
             isDeleted
               ? 'bg-slate-900/60 border border-white/[0.06] text-slate-400 italic rounded-tl-none sm:min-w-[160px]'
@@ -223,6 +239,58 @@ export const MessageBubble = ({
             </div>
           ) : (
             <div className="space-y-2">
+              {/* WhatsApp-Style Quoted Message Block */}
+              {message.replyTo && (
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (onScrollToMessage && message.replyTo.id) {
+                      onScrollToMessage(message.replyTo.id);
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (onScrollToMessage && message.replyTo.id) {
+                        onScrollToMessage(message.replyTo.id);
+                      }
+                    }
+                  }}
+                  className={`mb-2 p-2 rounded-xl text-left cursor-pointer transition-all border-l-4 select-none ${
+                    isCurrentUser
+                      ? 'bg-black/30 hover:bg-black/45 border-amber-400 text-indigo-100'
+                      : 'bg-black/40 hover:bg-black/55 border-amber-500 text-slate-200'
+                  }`}
+                  title="Click to view original message"
+                >
+                  <div className="flex items-center gap-1.5 text-[11px] font-bold">
+                    <span className="text-xs">{message.replyTo.sender?.anonymousAvatar || '🎭'}</span>
+                    <span className={isCurrentUser ? 'text-amber-200' : 'text-amber-400'}>
+                      {message.replyTo.sender?.anonymousName || 'Anonymous Student'}
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-slate-300 truncate mt-0.5 max-w-full">
+                    {message.replyTo.isDeleted ? (
+                      <span className="italic text-slate-400">Original message unavailable</span>
+                    ) : (
+                      <>
+                        {message.replyTo.attachment && (
+                          <span className="font-semibold text-slate-200 mr-1.5">
+                            {message.replyTo.attachment.mimeType?.startsWith('image/')
+                              ? '📷 Photo'
+                              : '📎 Attachment'}
+                          </span>
+                        )}
+                        {message.replyTo.content || (message.replyTo.attachment ? '' : 'Original message unavailable')}
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Media Attachment Display */}
               {message.attachment && (
                 <div className="rounded-xl overflow-hidden pt-0.5">
@@ -294,7 +362,9 @@ export const MessageBubble = ({
         {/* Floating Quick Actions Bar (hidden when message is deleted) */}
         {!isDeleted && (
           <div
-            className={`opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-150 flex items-center gap-1 bg-[#0b0f19]/95 border border-white/[0.1] rounded-full px-2 py-1 shadow-lg backdrop-blur-md z-20 absolute -top-3.5 ${
+            className={`${
+              showMobileActions ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+            } sm:pointer-events-auto group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-150 flex items-center gap-1 bg-[#0b0f19]/95 border border-white/[0.1] rounded-full px-2 py-1 shadow-lg backdrop-blur-md z-20 absolute -top-3.5 ${
               isCurrentUser ? 'right-2' : 'left-2'
             }`}
           >
@@ -323,6 +393,22 @@ export const MessageBubble = ({
             {/* Separator */}
             <span className="w-[1px] h-3 bg-white/20 mx-0.5" />
 
+            {/* Quick Reply Button */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onReply?.(message);
+              }}
+              title="Reply to message"
+              className="w-7 h-7 sm:w-6 sm:h-6 rounded-full hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-amber-400 hover:scale-110 active:scale-95 transition-all cursor-pointer"
+            >
+              <Reply className="w-3.5 h-3.5" />
+            </button>
+
+            {/* Separator */}
+            <span className="w-[1px] h-3 bg-white/20 mx-0.5" />
+
             {/* 3-Dot Context Menu Button */}
             <div className="relative" ref={menuRef}>
               <button
@@ -341,6 +427,19 @@ export const MessageBubble = ({
                     isCurrentUser ? 'right-0' : 'left-0'
                   } w-40 glass-panel-elevated rounded-xl shadow-2xl py-1.5 z-30 animate-in fade-in zoom-in-95 duration-100`}
                 >
+                  {/* Reply in dropdown */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onReply?.(message);
+                    }}
+                    className="w-full px-3 py-2 text-xs text-amber-300 hover:text-amber-200 hover:bg-amber-500/10 flex items-center gap-2 transition-colors text-left min-h-[38px] cursor-pointer"
+                  >
+                    <Reply className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Reply</span>
+                  </button>
+
                   {currentUser?.role === 'admin' && onTogglePin && (
                     <button
                       type="button"

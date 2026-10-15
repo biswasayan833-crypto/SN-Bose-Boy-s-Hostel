@@ -84,11 +84,12 @@ export const getMessages = async (req, res) => {
  */
 export const sendMessage = async (req, res) => {
   try {
-    const { content } = req.body;
+    const { content, replyTo } = req.body;
     const message = await createMessage({
       roomId: req.params.roomId,
       user: req.user,
       content,
+      replyTo,
     });
 
     try {

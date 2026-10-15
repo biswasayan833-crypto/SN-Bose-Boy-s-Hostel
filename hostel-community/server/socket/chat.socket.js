@@ -180,11 +180,11 @@ export const initSocket = (httpServer) => {
 
     /**
      * Send Message Event
-     * Client emits: 'send_message', { roomId, content }
+     * Client emits: 'send_message', { roomId, content, replyTo }
      */
     socket.on('send_message', async (data, callback) => {
       try {
-        const { roomId, content } = data || {};
+        const { roomId, content, replyTo } = data || {};
 
         if (!roomId || !content) {
           const errPayload = { message: 'Both roomId and message content are required.' };
@@ -198,6 +198,7 @@ export const initSocket = (httpServer) => {
           roomId,
           user: student,
           content,
+          replyTo,
         });
 
         // Create peer-safe message without exposing author's internal MongoDB ID

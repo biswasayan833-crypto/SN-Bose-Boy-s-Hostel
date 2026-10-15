@@ -44,6 +44,7 @@ export const ChatPage = () => {
   const [highlightedMessageId, setHighlightedMessageId] = useState(null);
   const [pinnedMessages, setPinnedMessages] = useState([]);
   const [pinnedExpanded, setPinnedExpanded] = useState(false);
+  const [replyingTo, setReplyingTo] = useState(null);
   const [inputContent, setInputContent] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
   const [filePreviewUrl, setFilePreviewUrl] = useState('');
@@ -159,19 +160,36 @@ export const ChatPage = () => {
       const { messageId } = payload;
       setMessages((prev) =>
         prev.map((m) => {
+          let updated = m;
           if (m.id === messageId || m._id === messageId) {
-            return {
-              ...m,
+            updated = {
+              ...updated,
               isDeleted: true,
               content: 'This message was deleted by its author.',
               attachment: null,
               reactions: [],
             };
           }
-          return m;
+          if (updated.replyTo && (updated.replyTo.id === messageId || updated.replyTo._id === messageId)) {
+            updated = {
+              ...updated,
+              replyTo: {
+                ...updated.replyTo,
+                isDeleted: true,
+                content: 'Original message unavailable',
+                attachment: null,
+              },
+            };
+          }
+          return updated;
         })
       );
       setPinnedMessages((prev) => prev.filter((p) => p.id !== messageId));
+      setReplyingTo((current) =>
+        current?.id === messageId
+          ? { ...current, isDeleted: true, content: 'Original message unavailable' }
+          : current
+      );
     });
 
     const unsubscribeMessagePinned = socketService.onMessagePinned((payload) => {
@@ -289,6 +307,33 @@ export const ChatPage = () => {
     return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
   };
 
+  // Handle reply selection
+  const handleReplyToMessage = (msg) => {
+    if (!msg || msg.isDeleted) return;
+    setReplyingTo(msg);
+    setTimeout(() => {
+      textareaRef.current?.focus();
+    }, 50);
+  };
+
+  // Handle cancel reply
+  const handleCancelReply = () => {
+    setReplyingTo(null);
+  };
+
+  // Handle click on quoted preview to smoothly scroll to original message and highlight it
+  const handleScrollToMessage = (messageId) => {
+    if (!messageId) return;
+    const el = document.getElementById(`msg-${messageId}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setHighlightedMessageId(messageId);
+      setTimeout(() => {
+        setHighlightedMessageId((prev) => (prev === messageId ? null : prev));
+      }, 2500);
+    }
+  };
+
   // Handle message submission (supports both text and attachments)
   const handleSendMessage = async (e) => {
     if (e) e.preventDefault();
@@ -307,6 +352,9 @@ export const ChatPage = () => {
         if (trimmed) {
           formData.append('content', trimmed);
         }
+        if (replyingTo?.id) {
+          formData.append('replyTo', replyingTo.id);
+        }
 
         await messageService.uploadAttachment(room._id, formData, (progressEvent) => {
           if (progressEvent.total) {
@@ -315,7 +363,8 @@ export const ChatPage = () => {
           }
         });
 
-        // Clear input and attachments on success
+        // Clear input, reply, and attachments on success
+        setReplyingTo(null);
         handleRemoveFile();
         setInputContent('');
         if (textareaRef.current) {
@@ -325,14 +374,16 @@ export const ChatPage = () => {
         setSending(false);
       } else {
         // Send regular text message via Socket.IO
-        socketService.sendMessage(room._id, trimmed, (ack) => {
+        socketService.sendMessage(room._id, trimmed, replyingTo?.id || null, (ack) => {
           setSending(false);
           if (ack && ack.success) {
+            setReplyingTo(null);
             setInputContent('');
             if (textareaRef.current) {
               textareaRef.current.style.height = 'auto';
             }
           } else if (ack && !ack.success) {
+            // Keep replyingTo intact if failed so student does not lose context
             setError(ack.message || 'Failed to send message.');
           }
         });
@@ -340,6 +391,7 @@ export const ChatPage = () => {
     } catch (err) {
       setSending(false);
       setUploadProgress(0);
+      // Keep replyingTo intact so context is not lost
       setError(err.message || 'Message dispatch failed.');
     }
   };
@@ -691,6 +743,8 @@ export const ChatPage = () => {
                     onDeleteMessage={handleDeleteMessage}
                     onReportMessage={handleReportMessage}
                     onTogglePin={handleTogglePin}
+                    onReply={handleReplyToMessage}
+                    onScrollToMessage={handleScrollToMessage}
                   />
                 </div>
               ))}
@@ -701,6 +755,46 @@ export const ChatPage = () => {
           {/* Composer Box */}
           <div className="mt-4 pt-3 border-t border-white/[0.08] space-y-2">
             
+            {/* WhatsApp-Style Quoted-Message Preview Banner */}
+            {replyingTo && (
+              <div className="flex items-center justify-between gap-3 p-2.5 rounded-2xl bg-slate-900/95 border-l-4 border-l-amber-500 border border-white/[0.08] shadow-lg animate-in fade-in slide-in-from-bottom-2">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center flex-shrink-0 text-sm">
+                    {getAvatarDisplay(replyingTo.sender?.anonymousAvatar)}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-bold text-amber-400 truncate">
+                        Replying to {replyingTo.sender?.anonymousName || 'Anonymous Student'}
+                      </span>
+                      <span className="text-[10px] text-slate-500 font-mono">
+                        ({replyingTo.sender?.year || 'Resident'})
+                      </span>
+                    </div>
+                    <div className="text-xs text-slate-300 truncate max-w-[220px] sm:max-w-md mt-0.5">
+                      {replyingTo.attachment && (
+                        <span className="font-semibold text-slate-200 mr-1.5">
+                          {replyingTo.attachment.mimeType?.startsWith('image/')
+                            ? '📷 Photo'
+                            : '📎 Attachment'}
+                        </span>
+                      )}
+                      {replyingTo.content || (replyingTo.attachment ? '' : 'Original message')}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCancelReply}
+                  className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors flex-shrink-0 cursor-pointer"
+                  title="Cancel reply"
+                  aria-label="Cancel reply"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
             {/* Selected File Preview Banner (if file selected) */}
             {selectedFile && (
               <div className="flex items-center justify-between gap-3 p-2.5 rounded-2xl bg-slate-900/95 border border-indigo-500/40 animate-in fade-in slide-in-from-bottom-2">
@@ -769,7 +863,9 @@ export const ChatPage = () => {
                   onChange={handleInput}
                   onKeyDown={handleKeyDown}
                   placeholder={
-                    selectedFile
+                    replyingTo
+                      ? `Reply to ${replyingTo.sender?.anonymousName || 'message'}...`
+                      : selectedFile
                       ? `Add an optional caption for ${selectedFile.name}...`
                       : `Type an anonymous message in ${room?.name || 'this room'}... (Enter to send)`
                   }

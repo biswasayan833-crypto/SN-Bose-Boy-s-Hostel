@@ -234,7 +234,7 @@ export const unpinUserMessage = async (req, res) => {
 export const postAttachmentMessage = async (req, res) => {
   try {
     const { roomId } = req.params;
-    const { content } = req.body;
+    const { content, replyTo } = req.body;
     const file = req.file;
 
     if (!file) {
@@ -246,6 +246,7 @@ export const postAttachmentMessage = async (req, res) => {
       user: req.user,
       content,
       file,
+      replyTo,
     });
 
     // Broadcast new message with attachment to participants
